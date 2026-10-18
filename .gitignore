@@ -1,0 +1,23 @@
+# Dependencias
+node_modules/
+
+# Secretos y configuración local (nunca al repositorio)
+.env
+.env.*
+.dev.vars
+*.pem
+*.key
+
+# Estado y caché de Cloudflare / Wrangler
+.wrangler/
+.mf/
+
+# Sistema operativo y editores
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Logs y resultados de pruebas
+*.log
+coverage/
