@@ -59,6 +59,8 @@ function mostrarSeccion(nombre) {
   $("seccionInicio").hidden = nombre !== "inicio";
   $("seccionServicios").hidden = nombre !== "servicios";
   $("seccionClientes").hidden = nombre !== "clientes";
+  $("seccionAvisos").hidden = nombre !== "avisos";
+  if (nombre === "avisos") cargarSeccionAvisos();
   $("seccionAgenda").hidden = nombre !== "agenda";
   $("seccionResumen").hidden = nombre !== "resumen";
   if (nombre === "resumen") cargarResumen().catch((err) => alert(err.message));
@@ -88,6 +90,7 @@ async function cargarPanel() {
   $("rolUsuario").textContent = ROLES[business.role] || business.role;
   $("nuevoNombre").value = business.name;
   $("nuevaCancelacion").value = business.cancel_hours;
+  $("nuevaResenas").value = business.review_url || "";
   mostrarEnlaceReserva(business.slug);
   $("formNegocio").hidden = !ROLES_QUE_GESTIONAN.includes(business.role);
 
@@ -966,3 +969,127 @@ $("resumenFecha").addEventListener("change", (e) => {
   resumen.fecha = e.target.value;
   cargarResumen().catch((err) => alert(err.message));
 });
+
+// ---------- Avisos y lista de espera ----------
+
+const TIPO_AVISO = {
+  confirmacion: "Confirmación",
+  recordatorio: "Recordatorio 24 h",
+  cancelacion: "Cancelación",
+  cambio_hora: "Cambio de hora",
+  aviso_profesional: "Aviso al negocio",
+  seguimiento: "Seguimiento",
+  hueco_libre: "Hueco libre",
+  reactivacion: "Reactivación",
+};
+const ESTADO_AVISO = { pendiente: "Pendiente de envío", enviado: "Enviado", fallido: "Fallido", caducado: "Caducado" };
+
+async function cargarAvisos() {
+  const { configuracion, avisos } = await api(`/api/businesses/${estado.negocioId}/notifications`);
+  const estadoBox = $("estadoAvisos");
+  estadoBox.replaceChildren();
+  const correo = configuracion.correo ? "Correo: configurado" : "Correo: sin configurar";
+  const wa = configuracion.whatsapp ? "WhatsApp: configurado" : "WhatsApp: sin configurar";
+  estadoBox.append(crear("p", "etiqueta", `${correo} · ${wa}`));
+  if (!configuracion.correo && !configuracion.whatsapp) {
+    estadoBox.append(crear("p", "alerta", "Los avisos quedan en cola como pendientes hasta que se configure un proveedor. Nada se marca como enviado sin envío real."));
+  }
+
+  const lista = $("listaAvisos");
+  lista.replaceChildren();
+  $("vacioAvisos").hidden = avisos.length > 0;
+  for (const a of avisos) {
+    const li = crear("li", "elemento");
+    const textos = crear("div", "elemento-texto");
+    textos.append(crear("strong", "", `${TIPO_AVISO[a.kind] || a.kind} · ${a.destino}`));
+    const detalle = [ESTADO_AVISO[a.status], a.channel === "whatsapp" ? "WhatsApp" : "Correo"];
+    if (a.attempts) detalle.push(`${a.attempts} intento(s)`);
+    if (a.last_error) detalle.push(a.last_error);
+    textos.append(crear("span", "detalle", detalle.join(" · ")));
+    li.append(textos);
+    if (a.status === "fallido") {
+      const reintentar = crear("button", "pequeno", "Reintentar");
+      reintentar.type = "button";
+      reintentar.addEventListener("click", async () => {
+        try {
+          await api(`/api/businesses/${estado.negocioId}/notifications/${a.id}/retry`, "POST", {});
+          await cargarAvisos();
+        } catch (err) {
+          alert(err.message);
+        }
+      });
+      li.append(reintentar);
+    } else {
+      li.append(crear("span", "insignia", ESTADO_AVISO[a.status]));
+    }
+    lista.append(li);
+  }
+}
+
+async function cargarEspera() {
+  const { espera } = await api(`/api/businesses/${estado.negocioId}/waitlist`);
+  const lista = $("listaEspera");
+  lista.replaceChildren();
+  $("vacioEspera").hidden = espera.length > 0;
+  for (const e of espera) {
+    const li = crear("li", "elemento");
+    const textos = crear("div", "elemento-texto");
+    textos.append(crear("strong", "", e.client_name));
+    textos.append(crear("span", "detalle", `${e.service_name} · ${e.fecha}`));
+    li.append(textos);
+    const quitar = crear("button", "pequeno peligro-pequeno", "Quitar");
+    quitar.type = "button";
+    quitar.addEventListener("click", async () => {
+      try {
+        await api(`/api/businesses/${estado.negocioId}/waitlist/${e.id}`, "DELETE", {});
+        await cargarEspera();
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+    li.append(quitar);
+    lista.append(li);
+  }
+}
+
+async function rellenarEspera() {
+  const [{ clients }, { services }] = await Promise.all([
+    api(`/api/businesses/${estado.negocioId}/clients`),
+    api(`/api/businesses/${estado.negocioId}/services`),
+  ]);
+  $("esperaCliente").replaceChildren(...clients.map((c) => new Option(`${c.first_name} ${c.last_name}`, c.id)));
+  $("esperaServicio").replaceChildren(...services.filter((s) => s.active).map((s) => new Option(s.name, s.id)));
+  $("esperaFecha").value = hoyLocal();
+}
+
+$("formEspera").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const boton = e.submitter;
+  boton.disabled = true;
+  mostrarError($("errorEspera"), "");
+  try {
+    await api(`/api/businesses/${estado.negocioId}/waitlist`, "POST", {
+      client_id: $("esperaCliente").value,
+      service_id: $("esperaServicio").value,
+      date: $("esperaFecha").value,
+    });
+    await cargarEspera();
+  } catch (err) {
+    mostrarError($("errorEspera"), err.message);
+  } finally {
+    boton.disabled = false;
+  }
+});
+
+async function cargarSeccionAvisos() {
+  try {
+    await cargarAvisos();
+  } catch (err) {
+    // Solo propietario y administrador ven el historial de avisos.
+    $("listaAvisos").replaceChildren();
+    $("estadoAvisos").replaceChildren(crear("p", "nota", err.message));
+    $("vacioAvisos").hidden = true;
+  }
+  await rellenarEspera();
+  await cargarEspera();
+}

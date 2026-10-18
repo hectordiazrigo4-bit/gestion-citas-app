@@ -15,3 +15,7 @@ binding = "DB"
 database_name = "gestion-citas"
 database_id = "REEMPLAZAR_CON_ID_DE_D1"
 migrations_dir = "db/migrations"
+
+# Proceso programado: recordatorios, seguimientos y envío de la cola de avisos (cada 10 minutos).
+[triggers]
+crons = ["*/10 * * * *"]

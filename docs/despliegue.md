@@ -57,3 +57,26 @@ En esta fase no hace falta ningún secreto: las sesiones usan tokens aleatorios 
 - Recuperación de contraseña.
 - Verificación del correo al registrarse.
 - Copias de seguridad automáticas de D1 (revisar el plan de Cloudflare).
+
+## Avisos automáticos (correo y WhatsApp)
+
+Las claves se configuran como secretos. Nunca se suben al repositorio. Para probar en local, pásalas con `--var` o en `.dev.vars` (ese archivo está en `.gitignore`).
+
+En Cloudflare, por cada secreto: `npx wrangler secret put NOMBRE` y pegar el valor.
+
+| Variable | Qué es |
+|---|---|
+| `RESEND_API_KEY` | Clave de API de Resend (plan gratuito: 3.000 correos al mes). |
+| `EMAIL_FROM` | Remitente. Debe ser un dominio verificado en Resend, p. ej. `Avisos <avisos@tudominio.com>`. |
+| `WHATSAPP_TOKEN` | Token de acceso de la API de WhatsApp Cloud (Meta). |
+| `WHATSAPP_PHONE_ID` | Identificador del número de WhatsApp Business. |
+| `WHATSAPP_TPL_CONFIRMACION`, `WHATSAPP_TPL_RECORDATORIO`, `WHATSAPP_TPL_CANCELACION`, `WHATSAPP_TPL_CAMBIO_HORA`, `WHATSAPP_TPL_HUECO_LIBRE` | Nombre de cada plantilla aprobada en Meta. Sus parámetros, en este orden: negocio, servicio, fecha y hora. |
+| `WHATSAPP_TPL_SEGUIMIENTO`, `WHATSAPP_TPL_REACTIVACION` | Plantillas con un único parámetro: el nombre del negocio. |
+
+Notas:
+
+- Las plantillas de WhatsApp deben crearse y aprobarse en Meta antes de usarse. Mientras no estén aprobadas, esos avisos van por correo si el cliente tiene correo.
+- El correo de avisos al negocio (reservas web) siempre va por correo.
+- Sin ninguna clave configurada, los avisos quedan en la cola como **pendientes**. El panel lo indica.
+- Antes de publicar, la política de privacidad y los textos legales deben revisarse.
+- Cron: el proceso se ejecuta cada 10 minutos (`[triggers]` en `wrangler.toml`).

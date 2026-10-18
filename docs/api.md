@@ -125,3 +125,27 @@ Respuesta:
 - `tareas`: `citas_por_confirmar`, `citas_sin_cerrar` (pasadas y todavía pendientes o confirmadas) y `clientes_inactivos` (última cita completada hace más de 90 días).
 
 Los ingresos son de citas completadas, no de cobros. Los cobros registrados llegarán con la Fase 7.
+
+## Avisos y lista de espera
+
+| Método | Ruta | Roles | Descripción |
+|---|---|---|---|
+| GET | `/api/businesses/:id/notifications` | Propietario, administrador | Estado de la configuración de correo y WhatsApp, y los últimos 100 avisos. El destinatario aparece enmascarado. |
+| POST | `/api/businesses/:id/notifications/:nid/retry` | Propietario, administrador | Vuelve a enviar un aviso fallido. |
+| GET | `/api/businesses/:id/waitlist` | Todos | Lista de espera. |
+| POST | `/api/businesses/:id/waitlist` | Todos | Añade a una persona. Body: `client_id`, `service_id`, `date` (AAAA-MM-DD). |
+| DELETE | `/api/businesses/:id/waitlist/:wid` | Todos | Quita a una persona de la lista de espera. |
+
+`PATCH /api/businesses/:id` acepta también `review_url` (solo `https://`, máximo 300 caracteres; vacío para quitarlo).
+
+Avisos que se generan:
+
+- **Confirmación** al crear una cita (o solicitud, si la reserva viene de la web).
+- **Aviso al negocio** por correo cuando llega una reserva web.
+- **Cambio de hora** y **cancelación**, cuando se modifica una cita.
+- **Hueco libre** para la lista de espera, cuando se cancela una cita de ese servicio ese día.
+- **Recordatorio** entre 23 y 24 horas antes de la cita.
+- **Seguimiento** en las 48 horas posteriores a una visita completada. Incluye el enlace de reseñas solo si el cliente ha aceptado comunicaciones.
+- **Reactivación** a los 90 días sin visita, solo con consentimiento de comunicaciones.
+
+Los avisos se procesan cada 10 minutos (Cron Trigger). Si falla un envío se reintenta hasta 5 veces con espera creciente. Sin proveedor configurado quedan pendientes y no se gasta ningún intento. Los avisos se borran a los 180 días.

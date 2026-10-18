@@ -262,6 +262,9 @@ textarea {
 
 .elemento.cancelada { opacity: .55; }
 
+.alerta { color: var(--error); font-size: .9rem; margin: 8px 0 0; }
+.aviso-estado { margin-bottom: 8px; }
+
 .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
 .kpi {
   background: var(--superficie);

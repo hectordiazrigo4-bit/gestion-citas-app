@@ -3,6 +3,7 @@
 
 import { HttpError, json, readJson, optionalText, requireBusinessAccess } from "./http.js";
 import { parseDateTime, dayBounds, MINUTO } from "./tiempo.js";
+import { alCrearCita, alCambiarCita } from "./avisos.js";
 
 const ESTADOS = ["pending", "confirmed", "completed", "cancelled", "no_show"];
 const ESTADOS_TERMINALES = ["completed", "no_show"];
@@ -67,6 +68,13 @@ export async function crearCita(env, businessId, tz, body, { source = "panel", p
   } catch (err) {
     throw errorDeHorario(err);
   }
+
+  try {
+    await alCrearCita(env, businessId, tz, { id, ...datos }, source);
+  } catch (err) {
+    // Un fallo al preparar el aviso no debe anular la cita.
+    console.error("error_aviso", err && err.name);
+  }
   return { id, ...datos };
 }
 
@@ -110,6 +118,18 @@ export async function updateAppointment(request, env, businessId, appointmentId)
       .run();
   } catch (err) {
     throw errorDeHorario(err);
+  }
+
+  try {
+    await alCambiarCita(
+      env,
+      businessId,
+      tz,
+      { id: appointmentId, status: actual.status, starts_at: actual.starts_at },
+      { id: appointmentId, status: datos.status, starts_at: datos.starts_at, client_id: datos.client_id, service_id: datos.service_id, service_name: datos.service_name }
+    );
+  } catch (err) {
+    console.error("error_aviso", err && err.name);
   }
 
   return json({ appointment: toDto({ id: appointmentId, ...datos, client_name: null }) });

@@ -21,6 +21,7 @@ import { listAppointments, createAppointment, updateAppointment } from "./citas.
 import { getHours, saveHours, listBlocks, createBlock, deleteBlock, getAvailability } from "./disponibilidad.js";
 import { generarSlug, getPublicBusiness, getPublicAvailability, crearReservaPublica } from "./publica.js";
 import { getDashboard } from "./panel.js";
+import { ejecutarAvisos, listarAvisos, reintentarAviso, listarEspera, anadirEspera, quitarEspera } from "./avisos.js";
 
 const ID = "([0-9a-f-]{36})";
 const RUTA_NEGOCIO = new RegExp(`^/api/businesses/${ID}$`);
@@ -30,10 +31,17 @@ const RUTA_CITAS = new RegExp(`^/api/businesses/${ID}/appointments(?:/${ID})?$`)
 const RUTA_DISPONIBILIDAD = new RegExp(`^/api/businesses/${ID}/availability$`);
 const RUTA_HORARIO = new RegExp(`^/api/businesses/${ID}/hours$`);
 const RUTA_RESUMEN = new RegExp(`^/api/businesses/${ID}/dashboard$`);
+const RUTA_AVISOS = new RegExp(`^/api/businesses/${ID}/notifications(?:/${ID}/retry)?$`);
+const RUTA_ESPERA = new RegExp(`^/api/businesses/${ID}/waitlist(?:/${ID})?$`);
 const RUTA_BLOQUEOS = new RegExp(`^/api/businesses/${ID}/blocks(?:/${ID})?$`);
 const RUTA_PUBLICA = /^\/api\/public\/businesses\/([a-z0-9-]{3,80})(\/availability|\/bookings)?$/;
 
 export default {
+  // Proceso programado (ver "triggers" en wrangler.toml): recordatorios, seguimientos y cola de envíos.
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(ejecutarAvisos(env));
+  },
+
   async fetch(request, env) {
     const url = new URL(request.url);
     if (!url.pathname.startsWith("/api/")) {
@@ -109,6 +117,21 @@ async function route(request, env, url) {
 
   m = pathname.match(RUTA_DISPONIBILIDAD);
   if (m && method === "GET") return getAvailability(request, env, m[1], url);
+
+  m = pathname.match(RUTA_AVISOS);
+  if (m) {
+    const [, businessId, avisoId] = m;
+    if (!avisoId && method === "GET") return listarAvisos(request, env, businessId);
+  }
+  m = pathname.match(RUTA_ESPERA);
+  if (m) {
+    const [, businessId, esperaId] = m;
+    if (!esperaId && method === "GET") return listarEspera(request, env, businessId);
+    if (!esperaId && method === "POST") return anadirEspera(request, env, businessId);
+    if (esperaId && method === "DELETE") return quitarEspera(request, env, businessId, esperaId);
+  }
+  m = pathname.match(/^\/api\/businesses\/([0-9a-f-]{36})\/notifications\/([0-9a-f-]{36})\/retry$/);
+  if (m && method === "POST") return reintentarAviso(request, env, m[1], m[2]);
 
   m = pathname.match(RUTA_RESUMEN);
   if (m && method === "GET") return getDashboard(request, env, m[1], url);
@@ -225,7 +248,7 @@ async function me(request, env) {
 
 async function getBusiness(request, env, businessId) {
   const { role } = await requireBusinessAccess(request, env, businessId);
-  const business = await env.DB.prepare("SELECT id, name, slug, cancel_hours, created_at FROM businesses WHERE id = ?")
+  const business = await env.DB.prepare("SELECT id, name, slug, cancel_hours, review_url, created_at FROM businesses WHERE id = ?")
     .bind(businessId)
     .first();
 
@@ -240,11 +263,28 @@ async function updateBusiness(request, env, businessId) {
   if (!Number.isInteger(horasCancelacion) || horasCancelacion < 0 || horasCancelacion > 168) {
     throw new HttpError(400, "Las horas de cancelación deben ser un número entero entre 0 y 168");
   }
-  await env.DB.prepare("UPDATE businesses SET name = ?, cancel_hours = ? WHERE id = ?")
-    .bind(name, horasCancelacion, businessId)
+  const reseña = validarEnlaceReseñas(body.review_url);
+  await env.DB.prepare("UPDATE businesses SET name = ?, cancel_hours = ?, review_url = ? WHERE id = ?")
+    .bind(name, horasCancelacion, reseña, businessId)
     .run();
 
-  return json({ business: { id: businessId, name, cancel_hours: horasCancelacion, role } });
+  return json({ business: { id: businessId, name, cancel_hours: horasCancelacion, review_url: reseña, role } });
+}
+
+// Solo enlaces https; vacío significa que no se piden reseñas.
+function validarEnlaceReseñas(valor) {
+  if (valor === undefined || valor === null || String(valor).trim() === "") return null;
+  const texto = String(valor).trim();
+  let url;
+  try {
+    url = new URL(texto);
+  } catch {
+    throw new HttpError(400, "El enlace de reseñas no es válido");
+  }
+  if (url.protocol !== "https:" || texto.length > 300) {
+    throw new HttpError(400, "El enlace de reseñas debe empezar por https:// (máximo 300 caracteres)");
+  }
+  return texto;
 }
 
 // ---------- Sesiones ----------

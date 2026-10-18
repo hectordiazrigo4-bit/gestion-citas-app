@@ -54,6 +54,7 @@
         <button type="button" class="pestana" data-seccion="servicios">Servicios</button>
         <button type="button" class="pestana" data-seccion="agenda">Agenda</button>
         <button type="button" class="pestana" data-seccion="clientes">Clientes</button>
+        <button type="button" class="pestana" data-seccion="avisos">Avisos</button>
       </nav>
 
       <!-- Inicio -->
@@ -85,6 +86,9 @@
             <input id="nuevoNombre" name="name" maxlength="120" required>
             <label for="nuevaCancelacion">Horas de antelación para cancelar sin coste</label>
             <input id="nuevaCancelacion" name="cancel_hours" type="number" min="0" max="168" step="1" inputmode="numeric" required>
+            <label for="nuevaResenas">Enlace para pedir reseñas (opcional, https://)</label>
+            <input id="nuevaResenas" name="review_url" type="url" maxlength="300" placeholder="Ej.: https://g.page/r/tu-negocio">
+            <p class="nota">Se incluye en el mensaje de seguimiento solo a clientes que han aceptado comunicaciones.</p>
             <button type="submit" class="principal">Guardar</button>
           </form>
           <p id="errorNegocio" class="error" role="alert" hidden></p>
@@ -137,6 +141,34 @@
         </div>
 
         <p class="nota">Ingresos: suma de las citas completadas. Los cobros registrados (efectivo, tarjeta o transferencia) llegarán con la Fase 7.</p>
+      </div>
+
+      <!-- Avisos -->
+      <div id="seccionAvisos" hidden>
+        <div class="tarjeta">
+          <h2>Avisos automáticos</h2>
+          <p class="nota">Confirmaciones, recordatorios 24 horas antes, cancelaciones y seguimiento tras cada visita se envían solos.</p>
+          <div id="estadoAvisos" class="aviso-estado"></div>
+          <ul id="listaAvisos" class="lista"></ul>
+          <p id="vacioAvisos" class="vacio" hidden>Todavía no se ha enviado ningún aviso.</p>
+        </div>
+
+        <div class="tarjeta">
+          <h2>Lista de espera</h2>
+          <p class="nota">Si se libera un hueco de ese servicio ese día, se avisa a estas personas.</p>
+          <form id="formEspera" novalidate>
+            <label for="esperaCliente">Cliente</label>
+            <select id="esperaCliente" required></select>
+            <label for="esperaServicio">Servicio</label>
+            <select id="esperaServicio" required></select>
+            <label for="esperaFecha">Día</label>
+            <input id="esperaFecha" type="date" required>
+            <button type="submit" class="principal">Añadir a la lista de espera</button>
+            <p id="errorEspera" class="error" role="alert" hidden></p>
+          </form>
+          <ul id="listaEspera" class="lista"></ul>
+          <p id="vacioEspera" class="vacio" hidden>No hay nadie en lista de espera.</p>
+        </div>
       </div>
 
       <!-- Servicios -->
