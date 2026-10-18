@@ -48,30 +48,116 @@
 
     <!-- Panel (solo con sesión iniciada) -->
     <section id="vistaPanel" hidden>
-      <div class="tarjeta">
-        <p class="etiqueta">Negocio</p>
-        <h2 id="nombreNegocio"></h2>
-        <p class="etiqueta">Tu rol: <span id="rolUsuario"></span></p>
+      <nav class="menu-panel" aria-label="Secciones">
+        <button type="button" class="pestana activa" data-seccion="inicio">Inicio</button>
+        <button type="button" class="pestana" data-seccion="servicios">Servicios</button>
+        <button type="button" class="pestana" data-seccion="clientes">Clientes</button>
+      </nav>
+
+      <!-- Inicio -->
+      <div id="seccionInicio">
+        <div class="tarjeta">
+          <p class="etiqueta">Negocio</p>
+          <h2 id="nombreNegocio"></h2>
+          <p class="etiqueta">Tu rol: <span id="rolUsuario"></span></p>
+          <p class="etiqueta" id="datosUsuario"></p>
+        </div>
+
+        <div class="tarjeta">
+          <h2>Cambiar nombre del negocio</h2>
+          <p class="nota">Solo el propietario y los administradores pueden cambiarlo.</p>
+          <form id="formNegocio" novalidate>
+            <label for="nuevoNombre">Nombre del negocio</label>
+            <input id="nuevoNombre" name="name" maxlength="120" required>
+            <button type="submit" class="principal">Guardar</button>
+          </form>
+          <p id="errorNegocio" class="error" role="alert" hidden></p>
+          <p id="okNegocio" class="ok" role="status" hidden>Cambios guardados.</p>
+        </div>
+
+        <button type="button" id="btnSalir" class="secundario">Cerrar sesión</button>
       </div>
 
-      <div class="tarjeta">
-        <h2>Usuario</h2>
-        <p id="datosUsuario"></p>
-      </div>
+      <!-- Servicios -->
+      <div id="seccionServicios" hidden>
+        <div class="tarjeta">
+          <div class="cabecera-lista">
+            <h2>Servicios</h2>
+            <button type="button" id="nuevoServicio" class="pequeno">Nuevo</button>
+          </div>
+          <p class="nota">Precio, duración y tiempo de preparación de cada servicio. Los inactivos no se ofrecen en las reservas.</p>
+          <ul id="listaServicios" class="lista"></ul>
+          <p id="vacioServicios" class="vacio" hidden>Todavía no hay servicios.</p>
+        </div>
 
-      <div class="tarjeta">
-        <h2>Cambiar nombre del negocio</h2>
-        <p class="nota">Solo el propietario y los administradores pueden cambiarlo.</p>
-        <form id="formNegocio" novalidate>
-          <label for="nuevoNombre">Nombre del negocio</label>
-          <input id="nuevoNombre" name="name" maxlength="120" required>
-          <button type="submit" class="principal">Guardar</button>
+        <form id="formServicio" class="tarjeta" novalidate hidden>
+          <h2 id="tituloFormServicio">Nuevo servicio</h2>
+          <label for="svNombre">Nombre</label>
+          <input id="svNombre" name="name" maxlength="120" required>
+          <label for="svDescripcion">Descripción (opcional)</label>
+          <textarea id="svDescripcion" name="description" maxlength="1000" rows="2"></textarea>
+          <div class="fila">
+            <div>
+              <label for="svPrecio">Precio (€)</label>
+              <input id="svPrecio" name="price" type="number" min="0" step="0.01" inputmode="decimal" required>
+            </div>
+            <div>
+              <label for="svDuracion">Duración (min)</label>
+              <input id="svDuracion" name="duration_min" type="number" min="5" max="720" step="5" inputmode="numeric" required>
+            </div>
+          </div>
+          <label for="svPrep">Tiempo de preparación (min)</label>
+          <input id="svPrep" name="prep_min" type="number" min="0" max="240" step="5" inputmode="numeric" value="0">
+          <label class="casilla"><input id="svActivo" name="active" type="checkbox" checked> Activo (se puede reservar)</label>
+          <button type="submit" class="principal">Guardar servicio</button>
+          <button type="button" id="cancelarServicio" class="secundario">Cancelar</button>
+          <button type="button" id="eliminarServicio" class="peligro" hidden>Eliminar servicio</button>
+          <p id="errorServicio" class="error" role="alert" hidden></p>
         </form>
-        <p id="errorNegocio" class="error" role="alert" hidden></p>
-        <p id="okNegocio" class="ok" role="status" hidden>Cambios guardados.</p>
       </div>
 
-      <button type="button" id="btnSalir" class="secundario">Cerrar sesión</button>
+      <!-- Clientes -->
+      <div id="seccionClientes" hidden>
+        <div class="tarjeta">
+          <div class="cabecera-lista">
+            <h2>Clientes</h2>
+            <button type="button" id="nuevoCliente" class="pequeno">Nuevo</button>
+          </div>
+          <label for="buscarCliente">Buscar por nombre, teléfono o correo</label>
+          <input id="buscarCliente" type="search" maxlength="100" autocomplete="off">
+          <ul id="listaClientes" class="lista"></ul>
+          <p id="vacioClientes" class="vacio" hidden>No hay clientes que coincidan.</p>
+          <p class="nota">Se muestran hasta 50 resultados. Escribe para afinar la búsqueda.</p>
+        </div>
+
+        <form id="formCliente" class="tarjeta" novalidate hidden>
+          <h2 id="tituloFormCliente">Nuevo cliente</h2>
+          <div class="fila">
+            <div>
+              <label for="clNombre">Nombre</label>
+              <input id="clNombre" name="first_name" maxlength="80" required>
+            </div>
+            <div>
+              <label for="clApellidos">Apellidos</label>
+              <input id="clApellidos" name="last_name" maxlength="120" required>
+            </div>
+          </div>
+          <label for="clTelefono">Teléfono</label>
+          <input id="clTelefono" name="phone" type="tel" autocomplete="tel" inputmode="tel" maxlength="20" placeholder="Ej.: 600 111 222">
+          <label for="clEmail">Correo electrónico (opcional)</label>
+          <input id="clEmail" name="email" type="email" autocomplete="email" maxlength="254">
+          <label for="clEtiquetas">Etiquetas (separadas por comas)</label>
+          <input id="clEtiquetas" name="tags" maxlength="300" placeholder="Ej.: vip, color">
+          <label for="clNotas">Notas profesionales</label>
+          <textarea id="clNotas" name="notes" maxlength="2000" rows="3"></textarea>
+          <label class="casilla"><input id="clConsent" name="marketing_consent" type="checkbox"> El cliente acepta recibir comunicaciones (recordatorios, ofertas)</label>
+          <p class="nota">Solo marca esta casilla si el cliente lo ha aceptado expresamente.</p>
+          <button type="submit" class="principal">Guardar cliente</button>
+          <button type="button" id="cancelarCliente" class="secundario">Cancelar</button>
+          <button type="button" id="eliminarCliente" class="peligro" hidden>Eliminar cliente</button>
+          <p id="errorCliente" class="error" role="alert" hidden></p>
+        </form>
+      </div>
     </section>
   </main>
 
