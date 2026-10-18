@@ -114,11 +114,15 @@ export async function deleteBlock(request, env, businessId, blockId) {
 
 export async function getAvailability(request, env, businessId, url) {
   await requireBusinessAccess(request, env, businessId);
-  return json(await huecosLibres(env, businessId, url.searchParams.get("date"), url.searchParams.get("service_id") || ""));
+  return json(
+    await huecosLibres(env, businessId, url.searchParams.get("date"), url.searchParams.get("service_id") || "", url.searchParams.get("employee_id") || null)
+  );
 }
 
 // Huecos libres de un día para un servicio. Lo usan el panel y la página pública de reservas.
-export async function huecosLibres(env, businessId, fechaTexto, serviceId) {
+// Huecos libres de un día para un servicio.
+// Con profesionales asignados al servicio y sin elegir ninguno, se devuelve la unión de los huecos de cada uno.
+export async function huecosLibres(env, businessId, fechaTexto, serviceId, employeeId = null) {
   const tz = await businessTimezone(env, businessId);
   const dia = dayBounds(tz, fechaTexto);
 
@@ -130,27 +134,73 @@ export async function huecosLibres(env, businessId, fechaTexto, serviceId) {
   if (!servicio) throw new HttpError(404, "Servicio no encontrado");
   if (!servicio.active) throw new HttpError(400, "El servicio está inactivo");
 
-  const horario = await env.DB.prepare(
-    "SELECT opens_min, closes_min FROM working_hours WHERE business_id = ? AND weekday = ?"
+  let profesionales;
+  if (employeeId) {
+    await profesionalQueRealiza(env, businessId, serviceId, employeeId);
+    profesionales = [employeeId];
+  } else {
+    const { results } = await env.DB.prepare(
+      "SELECT user_id FROM employee_services WHERE business_id = ? AND service_id = ?"
+    )
+      .bind(businessId, serviceId)
+      .all();
+    profesionales = results.length ? results.map((r) => r.user_id) : [null];
+  }
+
+  const slots = new Set();
+  let hours = null;
+  for (const pro of profesionales) {
+    const r = await huecosDeUno(env, businessId, tz, dia, servicio, pro);
+    for (const s of r.slots) slots.add(s);
+    if (r.hours && !hours) hours = r.hours;
+  }
+
+  return { timezone: tz, slots: [...slots].sort(), hours };
+}
+
+// Comprueba que la persona existe en el negocio y realiza ese servicio.
+export async function profesionalQueRealiza(env, businessId, serviceId, userId) {
+  const miembro = await env.DB.prepare(
+    "SELECT user_id FROM memberships WHERE business_id = ? AND user_id = ?"
   )
-    .bind(businessId, dia.weekday)
+    .bind(businessId, userId)
     .first();
-  if (!horario) return { timezone: tz, slots: [], hours: null };
+  if (!miembro) throw new HttpError(404, "Profesional no encontrado");
+
+  const asignados = await env.DB.prepare(
+    "SELECT COUNT(*) AS n FROM employee_services WHERE business_id = ? AND service_id = ?"
+  )
+    .bind(businessId, serviceId)
+    .first();
+  if (asignados.n === 0) return;
+
+  const realiza = await env.DB.prepare(
+    "SELECT 1 AS ok FROM employee_services WHERE business_id = ? AND service_id = ? AND user_id = ?"
+  )
+    .bind(businessId, serviceId, userId)
+    .first();
+  if (!realiza) throw new HttpError(400, "Esa persona no realiza este servicio");
+}
+
+async function huecosDeUno(env, businessId, tz, dia, servicio, pro) {
+  const horario = await horarioDelDia(env, businessId, pro, dia.weekday);
+  if (!horario) return { slots: [], hours: null };
 
   const { y, mo, d } = dia.parts;
   const abre = zonedToUtc(tz, y, mo, d, Math.floor(horario.opens_min / 60), horario.opens_min % 60);
   const cierra = zonedToUtc(tz, y, mo, d, Math.floor(horario.closes_min / 60), horario.closes_min % 60);
   const duracion = (servicio.duration_min + servicio.prep_min) * MINUTO;
 
+  // Citas de la misma persona (o sin asignar) y bloqueos que la afectan.
   const ocupados = await env.DB.prepare(
     `SELECT starts_at AS desde, blocked_until AS hasta FROM appointments
       WHERE business_id = ? AND status IN ${ESTADOS_QUE_OCUPAN}
-        AND starts_at < ? AND blocked_until > ?
+        AND starts_at < ? AND blocked_until > ? AND employee_id IS ?
      UNION ALL
      SELECT starts_at AS desde, ends_at AS hasta FROM blocked_slots
-      WHERE business_id = ? AND starts_at < ? AND ends_at > ?`
+      WHERE business_id = ? AND starts_at < ? AND ends_at > ? AND (employee_id IS NULL OR employee_id IS ?)`
   )
-    .bind(businessId, cierra, abre, businessId, cierra, abre)
+    .bind(businessId, cierra, abre, pro, businessId, cierra, abre, pro)
     .all();
 
   const ahora = Date.now();
@@ -162,7 +212,31 @@ export async function huecosLibres(env, businessId, fechaTexto, serviceId) {
     if (!choca) slots.push(new Date(inicio).toISOString());
   }
 
-  return { timezone: tz, slots, hours: minutesToTime(horario.opens_min) + "–" + minutesToTime(horario.closes_min) };
+  return {
+    slots,
+    hours: pro ? null : minutesToTime(horario.opens_min) + "–" + minutesToTime(horario.closes_min),
+  };
+}
+
+// Horario del profesional si tiene uno propio; si no, el del negocio.
+async function horarioDelDia(env, businessId, pro, weekday) {
+  if (pro) {
+    const propio = await env.DB.prepare(
+      "SELECT COUNT(*) AS n FROM employee_hours WHERE business_id = ? AND user_id = ?"
+    )
+      .bind(businessId, pro)
+      .first();
+    if (propio.n > 0) {
+      return env.DB.prepare(
+        "SELECT opens_min, closes_min FROM employee_hours WHERE business_id = ? AND user_id = ? AND weekday = ?"
+      )
+        .bind(businessId, pro, weekday)
+        .first();
+    }
+  }
+  return env.DB.prepare("SELECT opens_min, closes_min FROM working_hours WHERE business_id = ? AND weekday = ?")
+    .bind(businessId, weekday)
+    .first();
 }
 
 // ---------- Utilidades ----------

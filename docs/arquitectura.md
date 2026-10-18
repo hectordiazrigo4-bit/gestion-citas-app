@@ -25,6 +25,21 @@ Alternativa considerada: Supabase, con Row Level Security (RLS) en la propia bas
 
 Cada cuenta trabaja con un único negocio. La restricción está en la base de datos (`db/migrations/0002_un_negocio_por_usuario.sql`), así que ningún fallo de la aplicación puede asignar dos negocios a la misma persona. Los empleados se añadirán más adelante como usuarios vinculados al negocio del propietario.
 
+## Permisos por rol
+
+| Acción | Propietario | Administrador | Empleado |
+|---|---|---|---|
+| Ver agenda, clientes, resumen y equipo | Sí | Sí | Sí |
+| Crear, editar y cancelar citas, y registrar cobros | Sí | Sí | Sí |
+| Devolver cobros | Sí | Sí | No |
+| Servicios, horario del negocio, bloqueos y ajustes | Sí | Sí | No |
+| Invitar personas, cambiar su servicio y horario | Sí | Sí | No |
+| Cambiar roles y quitar personas | Sí | No | No |
+| Cambiar el nombre del negocio y la política de cancelación | Sí | Sí | No |
+| Ver el historial de avisos y reintentar fallidos | Sí | Sí | No |
+
+El aislamiento entre negocios se comprueba en el servidor, en cada ruta, y con el mismo criterio: un negocio ajeno responde 404.
+
 ## Roles previstos
 
 - **Propietario:** todo el negocio, incluida la facturación.
@@ -60,5 +75,5 @@ docs/           Documentación
 - [x] Fase 4: horarios, bloqueos, disponibilidad, prevención de solapamientos y página pública de reservas (ver [api.md](api.md)).
 - [x] Fase 5: resumen con indicadores reales por día, semana y mes (ver [api.md](api.md)). Los cobros reales quedan para la Fase 7.
 - [x] Fase 6: avisos automáticos y lista de espera (ver [api.md](api.md) y [despliegue.md](despliegue.md)). El envío real depende de configurar el correo y WhatsApp.
-- [ ] Fase 7: empleados, pagos y permisos avanzados.
+- [x] Fase 7: equipo con invitaciones, roles, servicios y horario por profesional, agenda por profesional, cobros manuales y devoluciones (ver [api.md](api.md)). Pendiente: integración con Stripe, que no se ha construido.
 - [ ] Fase 8: suscripciones, pruebas y despliegue.

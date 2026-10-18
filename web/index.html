@@ -55,6 +55,7 @@
         <button type="button" class="pestana" data-seccion="agenda">Agenda</button>
         <button type="button" class="pestana" data-seccion="clientes">Clientes</button>
         <button type="button" class="pestana" data-seccion="avisos">Avisos</button>
+        <button type="button" class="pestana" data-seccion="equipo">Equipo</button>
       </nav>
 
       <!-- Inicio -->
@@ -140,7 +141,7 @@
           <ul id="resumenTareas" class="lista"></ul>
         </div>
 
-        <p class="nota">Ingresos: suma de las citas completadas. Los cobros registrados (efectivo, tarjeta o transferencia) llegarán con la Fase 7.</p>
+        <p class="nota">Cobrado: suma de los cobros registrados en el periodo, menos las devoluciones. Pendiente: precio de las citas completadas menos lo cobrado.</p>
       </div>
 
       <!-- Avisos -->
@@ -168,6 +169,53 @@
           </form>
           <ul id="listaEspera" class="lista"></ul>
           <p id="vacioEspera" class="vacio" hidden>No hay nadie en lista de espera.</p>
+        </div>
+      </div>
+
+      <!-- Equipo -->
+      <div id="seccionEquipo" hidden>
+        <div class="tarjeta">
+          <h2>Equipo</h2>
+          <p class="nota">Cada persona tiene su propia cuenta y solo puede pertenecer a este negocio.</p>
+          <ul id="listaEquipo" class="lista"></ul>
+        </div>
+
+        <div class="tarjeta" id="tarjetaMiembro" hidden>
+          <h2 id="tituloMiembro"></h2>
+          <label for="miRol">Rol</label>
+          <select id="miRol">
+            <option value="admin">Administrador</option>
+            <option value="employee">Empleado</option>
+          </select>
+          <p class="nota">Servicios que realiza. Si no marcas ninguno, puede hacer cualquiera.</p>
+          <div id="miServicios"></div>
+          <p class="nota">Horario propio. Si no indicas ninguno, usa el horario del negocio.</p>
+          <div id="miHorario"></div>
+          <button type="button" id="guardarMiembro" class="principal">Guardar cambios</button>
+          <button type="button" id="quitarMiembro" class="peligro" hidden>Quitar del negocio</button>
+          <p id="errorMiembro" class="error" role="alert" hidden></p>
+          <p id="okMiembro" class="ok" role="status" hidden>Cambios guardados.</p>
+        </div>
+
+        <div class="tarjeta" id="tarjetaInvitar">
+          <h2>Invitar a una persona</h2>
+          <label for="invRol">Rol</label>
+          <select id="invRol">
+            <option value="employee">Empleado</option>
+            <option value="admin">Administrador</option>
+          </select>
+          <label for="invCorreo">Correo (opcional: si lo indicas, solo esa persona podrá usar el enlace)</label>
+          <input id="invCorreo" type="email" maxlength="254">
+          <button type="button" id="crearInvitacion" class="principal">Crear enlace de invitación</button>
+          <div id="enlaceInvitacion" hidden>
+            <label for="enlaceNuevo">Enlace (solo se muestra ahora)</label>
+            <input id="enlaceNuevo" readonly>
+            <button type="button" id="copiarInvitacion" class="pequeno">Copiar enlace</button>
+          </div>
+          <p id="errorInvitar" class="error" role="alert" hidden></p>
+          <h2 class="separado">Invitaciones pendientes</h2>
+          <ul id="listaInvitaciones" class="lista"></ul>
+          <p id="vacioInvitaciones" class="vacio" hidden>No hay invitaciones pendientes.</p>
         </div>
       </div>
 
@@ -281,6 +329,38 @@
           <p id="detalleTexto" class="nota"></p>
           <div class="acciones" id="accionesCita"></div>
           <button type="button" id="cambiarHora" class="secundario">Cambiar fecha u hora</button>
+          <div id="bloqueCobros" class="cobros">
+            <h2>Cobros</h2>
+            <p id="resumenCobros" class="etiqueta"></p>
+            <ul id="listaCobros" class="lista"></ul>
+            <form id="formCobro" novalidate>
+              <div class="fila">
+                <div>
+                  <label for="cobroImporte">Importe (€)</label>
+                  <input id="cobroImporte" type="number" min="0.01" step="0.01" inputmode="decimal" required>
+                </div>
+                <div>
+                  <label for="cobroMetodo">Medio de pago</label>
+                  <select id="cobroMetodo">
+                    <option value="efectivo">Efectivo</option>
+                    <option value="tarjeta">Tarjeta</option>
+                    <option value="transferencia">Transferencia</option>
+                    <option value="otro">Otro</option>
+                  </select>
+                </div>
+              </div>
+              <label for="cobroTipo">Movimiento</label>
+              <select id="cobroTipo">
+                <option value="pago">Cobro</option>
+                <option value="devolucion">Devolución (solo propietario y administración)</option>
+              </select>
+              <label for="cobroNota">Nota (opcional)</label>
+              <input id="cobroNota" maxlength="200">
+              <button type="submit" class="principal">Registrar</button>
+              <p id="errorCobro" class="error" role="alert" hidden></p>
+            </form>
+            <p class="nota">No guardamos datos de tarjeta: solo el medio de pago.</p>
+          </div>
           <p id="errorCita" class="error" role="alert" hidden></p>
         </div>
 
@@ -294,6 +374,8 @@
           <input id="citaFecha" type="date" required>
           <label for="citaHueco">Hora (solo se muestran huecos libres)</label>
           <select id="citaHueco" required></select>
+          <label for="citaProfesional">Profesional</label>
+          <select id="citaProfesional"></select>
           <label for="citaEstado">Estado</label>
           <select id="citaEstado">
             <option value="confirmed">Confirmada</option>

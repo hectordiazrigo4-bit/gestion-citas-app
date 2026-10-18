@@ -262,6 +262,11 @@ textarea {
 
 .elemento.cancelada { opacity: .55; }
 
+.cobros { margin-top: 12px; padding-top: 8px; border-top: 1px solid var(--linea); }
+.cobros h2 { font-size: 1rem; margin: 6px 0; }
+.casillas, #miServicios { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; }
+.separado { margin-top: 18px; }
+
 .alerta { color: var(--error); font-size: .9rem; margin: 8px 0 0; }
 .aviso-estado { margin-bottom: 8px; }
 
@@ -366,3 +371,6 @@ textarea {
   color: var(--acento);
 }
 .enlace-boton { text-decoration: none; text-align: center; display: inline-block; }
+
+.fila-horario input[type=time] { min-width: 0; width: 100%; padding: 8px 6px; font-size: .95rem; }
+.fila-horario { grid-template-columns: 1fr 1fr 1fr; }

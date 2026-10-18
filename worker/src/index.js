@@ -22,6 +22,8 @@ import { getHours, saveHours, listBlocks, createBlock, deleteBlock, getAvailabil
 import { generarSlug, getPublicBusiness, getPublicAvailability, crearReservaPublica } from "./publica.js";
 import { getDashboard } from "./panel.js";
 import { ejecutarAvisos, listarAvisos, reintentarAviso, listarEspera, anadirEspera, quitarEspera } from "./avisos.js";
+import { listarEquipo, listarInvitaciones, crearInvitacion, quitarInvitacion, verInvitacion, aceptarInvitacion, cambiarRol, quitarMiembro, guardarServiciosMiembro, guardarHorarioMiembro } from "./equipo.js";
+import { listarCobros, registrarCobro } from "./cobros.js";
 
 const ID = "([0-9a-f-]{36})";
 const RUTA_NEGOCIO = new RegExp(`^/api/businesses/${ID}$`);
@@ -33,6 +35,11 @@ const RUTA_HORARIO = new RegExp(`^/api/businesses/${ID}/hours$`);
 const RUTA_RESUMEN = new RegExp(`^/api/businesses/${ID}/dashboard$`);
 const RUTA_AVISOS = new RegExp(`^/api/businesses/${ID}/notifications(?:/${ID}/retry)?$`);
 const RUTA_ESPERA = new RegExp(`^/api/businesses/${ID}/waitlist(?:/${ID})?$`);
+const RUTA_EQUIPO = new RegExp(`^/api/businesses/${ID}/team$`);
+const RUTA_INVITACIONES = new RegExp(`^/api/businesses/${ID}/invitations(?:/${ID})?$`);
+const RUTA_MIEMBRO = new RegExp(`^/api/businesses/${ID}/members/${ID}(?:/(services|hours))?$`);
+const RUTA_COBROS = new RegExp(`^/api/businesses/${ID}/appointments/${ID}/payments$`);
+const RUTA_INVITACION_PUBLICA = /^\/api\/public\/invitations\/([A-Za-z0-9_-]{20,80})(\/accept)?$/;
 const RUTA_BLOQUEOS = new RegExp(`^/api/businesses/${ID}/blocks(?:/${ID})?$`);
 const RUTA_PUBLICA = /^\/api\/public\/businesses\/([a-z0-9-]{3,80})(\/availability|\/bookings)?$/;
 
@@ -74,7 +81,14 @@ async function route(request, env, url) {
   if (method === "POST" && pathname === "/api/auth/logout") return logout(request, env);
   if (method === "GET" && pathname === "/api/me") return me(request, env);
 
-  let m = pathname.match(RUTA_PUBLICA);
+  let m = pathname.match(RUTA_INVITACION_PUBLICA);
+  if (m) {
+    const [, token, accion] = m;
+    if (!accion && method === "GET") return verInvitacion(request, env, token);
+    if (accion === "/accept" && method === "POST") return aceptarInvitacion(request, env, token);
+  }
+
+  m = pathname.match(RUTA_PUBLICA);
   if (m) {
     const [, slug, accion] = m;
     if (!accion && method === "GET") return getPublicBusiness(request, env, slug);
@@ -117,6 +131,33 @@ async function route(request, env, url) {
 
   m = pathname.match(RUTA_DISPONIBILIDAD);
   if (m && method === "GET") return getAvailability(request, env, m[1], url);
+
+  m = pathname.match(RUTA_EQUIPO);
+  if (m && method === "GET") return listarEquipo(request, env, m[1]);
+
+  m = pathname.match(RUTA_INVITACIONES);
+  if (m) {
+    const [, businessId, invitacionId] = m;
+    if (!invitacionId && method === "GET") return listarInvitaciones(request, env, businessId);
+    if (!invitacionId && method === "POST") return crearInvitacion(request, env, businessId);
+    if (invitacionId && method === "DELETE") return quitarInvitacion(request, env, businessId, invitacionId);
+  }
+
+  m = pathname.match(RUTA_MIEMBRO);
+  if (m) {
+    const [, businessId, usuarioId, accion] = m;
+    if (!accion && method === "PATCH") return cambiarRol(request, env, businessId, usuarioId);
+    if (!accion && method === "DELETE") return quitarMiembro(request, env, businessId, usuarioId);
+    if (accion === "services" && method === "PUT") return guardarServiciosMiembro(request, env, businessId, usuarioId);
+    if (accion === "hours" && method === "PUT") return guardarHorarioMiembro(request, env, businessId, usuarioId);
+  }
+
+  m = pathname.match(RUTA_COBROS);
+  if (m) {
+    const [, businessId, citaId] = m;
+    if (method === "GET") return listarCobros(request, env, businessId, citaId);
+    if (method === "POST") return registrarCobro(request, env, businessId, citaId);
+  }
 
   m = pathname.match(RUTA_AVISOS);
   if (m) {

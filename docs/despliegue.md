@@ -51,7 +51,7 @@ En esta fase no hace falta ningún secreto: las sesiones usan tokens aleatorios 
 
 - Redactar la política de privacidad real del negocio. La casilla de reservas enlaza a ese texto y todavía no existe una página publicada.
 - Confirmaciones por correo y WhatsApp de las reservas: llegan en la Fase 6, cuando se configuren el proveedor de correo y la API de WhatsApp. Hasta entonces la página muestra la confirmación en pantalla y no se simula ningún envío.
-- Aplicar también las migraciones 0002 a 0005 en la base real (`npm run db:migrate:remote`).
+- Aplicar también las migraciones 0002 a 0007 en la base real (`npm run db:migrate:remote`).
 
 - Límite de intentos de inicio de sesión (protección frente a fuerza bruta).
 - Recuperación de contraseña.

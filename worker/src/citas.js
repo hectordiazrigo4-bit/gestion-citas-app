@@ -4,6 +4,7 @@
 import { HttpError, json, readJson, optionalText, requireBusinessAccess } from "./http.js";
 import { parseDateTime, dayBounds, MINUTO } from "./tiempo.js";
 import { alCrearCita, alCambiarCita } from "./avisos.js";
+import { profesionalQueRealiza } from "./disponibilidad.js";
 
 const ESTADOS = ["pending", "confirmed", "completed", "cancelled", "no_show"];
 const ESTADOS_TERMINALES = ["completed", "no_show"];
@@ -28,9 +29,10 @@ export async function listAppointments(request, env, businessId, url) {
 
   const { results } = await env.DB.prepare(
     `SELECT a.id, a.client_id, a.service_id, a.service_name, a.price_cents, a.starts_at, a.ends_at,
-            a.status, a.notes, c.first_name, c.last_name, c.phone
+            a.status, a.notes, a.employee_id, u.name AS employee_name, c.first_name, c.last_name, c.phone
        FROM appointments a
        JOIN clients c ON c.id = a.client_id
+       LEFT JOIN users u ON u.id = a.employee_id
       WHERE a.business_id = ? AND a.starts_at < ? AND a.ends_at > ?
       ORDER BY a.starts_at`
   )
@@ -58,12 +60,12 @@ export async function crearCita(env, businessId, tz, body, { source = "panel", p
     await env.DB.prepare(
       `INSERT INTO appointments
          (id, business_id, client_id, service_id, service_name, price_cents, starts_at, ends_at,
-          blocked_until, status, notes, source, privacy_accepted_at, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          blocked_until, status, notes, source, privacy_accepted_at, created_at, updated_at, employee_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
       .bind(id, businessId, datos.client_id, datos.service_id, datos.service_name, datos.price_cents,
         datos.starts_at, datos.ends_at, datos.blocked_until, datos.status, datos.notes, source,
-        privacyAccepted ? now : null, now, now)
+        privacyAccepted ? now : null, now, now, datos.employee_id)
       .run();
   } catch (err) {
     throw errorDeHorario(err);
@@ -110,11 +112,11 @@ export async function updateAppointment(request, env, businessId, appointmentId)
     await env.DB.prepare(
       `UPDATE appointments
           SET client_id = ?, service_id = ?, service_name = ?, price_cents = ?, starts_at = ?, ends_at = ?,
-              blocked_until = ?, status = ?, notes = ?, updated_at = ?
+              blocked_until = ?, status = ?, notes = ?, employee_id = ?, updated_at = ?
         WHERE id = ? AND business_id = ?`
     )
       .bind(datos.client_id, datos.service_id, datos.service_name, datos.price_cents, datos.starts_at,
-        datos.ends_at, datos.blocked_until, datos.status, datos.notes, Date.now(), appointmentId, businessId)
+        datos.ends_at, datos.blocked_until, datos.status, datos.notes, datos.employee_id, Date.now(), appointmentId, businessId)
       .run();
   } catch (err) {
     throw errorDeHorario(err);
@@ -143,6 +145,7 @@ async function validarCita(env, businessId, tz, body, ahora, actual = null) {
 
   const clientId = typeof body.client_id === "string" ? body.client_id : "";
   const serviceId = typeof body.service_id === "string" ? body.service_id : "";
+  const empleado = typeof body.employee_id === "string" && body.employee_id ? body.employee_id : null;
   const inicio = parseDateTime(body.starts, tz);
   if (!actual || inicio !== actual.starts_at) {
     if (inicio < ahora) throw new HttpError(400, "No se pueden crear o mover citas al pasado");
@@ -163,6 +166,8 @@ async function validarCita(env, businessId, tz, body, ahora, actual = null) {
     throw new HttpError(400, "El servicio está inactivo y no admite nuevas citas");
   }
 
+  if (empleado) await profesionalQueRealiza(env, businessId, serviceId, empleado);
+
   const finServicio = inicio + servicio.duration_min * MINUTO;
   return {
     client_id: clientId,
@@ -173,6 +178,7 @@ async function validarCita(env, businessId, tz, body, ahora, actual = null) {
     ends_at: finServicio,
     blocked_until: finServicio + servicio.prep_min * MINUTO,
     status: estado,
+    employee_id: empleado,
     notes: optionalText(body.notes, "notas", 2000),
   };
 }
@@ -206,6 +212,8 @@ function toDto(row) {
     client_id: row.client_id,
     client_name: row.client_name ?? (row.first_name ? `${row.first_name} ${row.last_name}` : null),
     phone: row.phone ?? null,
+    employee_id: row.employee_id ?? null,
+    employee_name: row.employee_name ?? null,
     service_id: row.service_id,
     service_name: row.service_name,
     price_cents: row.price_cents,

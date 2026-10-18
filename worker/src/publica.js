@@ -32,8 +32,23 @@ export async function getPublicBusiness(request, env, slug) {
     .bind(negocio.id)
     .all();
 
+  const profesionales = await env.DB.prepare(
+    `SELECT u.id, u.name, es.service_id
+       FROM employee_services es
+       JOIN users u ON u.id = es.user_id
+      WHERE es.business_id = ?`
+  )
+    .bind(negocio.id)
+    .all();
+  const porId = new Map();
+  for (const r of profesionales.results) {
+    if (!porId.has(r.id)) porId.set(r.id, { id: r.id, name: r.name, service_ids: [] });
+    porId.get(r.id).service_ids.push(r.service_id);
+  }
+
   return json({
     business: { name: negocio.name, timezone: negocio.timezone, cancel_hours: negocio.cancel_hours },
+    professionals: [...porId.values()],
     services: results.map((s) => ({
       id: s.id,
       name: s.name,
@@ -50,7 +65,8 @@ export async function getPublicAvailability(request, env, slug, url) {
     env,
     negocio.id,
     url.searchParams.get("date"),
-    url.searchParams.get("service_id") || ""
+    url.searchParams.get("service_id") || "",
+    url.searchParams.get("employee_id") || null
   );
   return json(resultado);
 }
@@ -78,6 +94,7 @@ export async function crearReservaPublica(request, env, slug) {
   if (!slots.some((s) => Date.parse(s) === inicio)) {
     throw new HttpError(409, "Ese hueco ya no está disponible. Elige otra hora.");
   }
+  const profesional = await elegirProfesional(env, negocio.id, fecha, body.service_id || "", inicio, body.employee_id || null);
 
   const clienteId = await clientePorTelefono(env, negocio.id, telefono, { nombre, apellidos, email });
   const cita = await crearCita(
@@ -89,6 +106,7 @@ export async function crearReservaPublica(request, env, slug) {
       service_id: body.service_id,
       starts: body.starts,
       status: "pending",
+      employee_id: profesional,
       notes: notas ? `Reserva web: ${notas}` : "Reserva web",
     },
     { source: "web", privacyAccepted: true }
@@ -108,6 +126,24 @@ export async function crearReservaPublica(request, env, slug) {
     },
     201
   );
+}
+
+// Con profesional elegido, se usa ese. Si no, se asigna el primero que tenga libre ese hueco.
+async function elegirProfesional(env, businessId, fecha, serviceId, inicio, elegido) {
+  if (elegido) {
+    const { slots } = await huecosLibres(env, businessId, fecha, serviceId, elegido);
+    if (!slots.some((s) => Date.parse(s) === inicio)) throw new HttpError(409, "Ese profesional no tiene libre esa hora");
+    return elegido;
+  }
+  const { results } = await env.DB.prepare("SELECT user_id FROM employee_services WHERE business_id = ? AND service_id = ? ORDER BY user_id")
+    .bind(businessId, serviceId)
+    .all();
+  if (results.length === 0) return null;
+  for (const r of results) {
+    const { slots } = await huecosLibres(env, businessId, fecha, serviceId, r.user_id);
+    if (slots.some((s) => Date.parse(s) === inicio)) return r.user_id;
+  }
+  throw new HttpError(409, "Ese hueco ya no está disponible. Elige otra hora.");
 }
 
 // Reutiliza la ficha si el teléfono ya existe en el negocio; si no, crea una nueva.

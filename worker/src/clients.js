@@ -41,7 +41,14 @@ export async function listClients(request, env, businessId, url) {
 export async function getClient(request, env, businessId, clientId) {
   await requireBusinessAccess(request, env, businessId);
   const row = await findClient(env, businessId, clientId);
-  return json({ client: toDto(row) });
+  const gasto = await env.DB.prepare(
+    `SELECT COALESCE(SUM(CASE WHEN p.kind = 'pago' THEN p.amount_cents ELSE -p.amount_cents END), 0) AS total
+       FROM payments p JOIN appointments a ON a.id = p.appointment_id
+      WHERE a.client_id = ? AND a.business_id = ?`
+  )
+    .bind(clientId, businessId)
+    .first();
+  return json({ client: { ...toDto(row), total_gastado_cents: gasto.total } });
 }
 
 export async function createClient(request, env, businessId) {

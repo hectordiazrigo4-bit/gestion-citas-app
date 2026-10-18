@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f6e56">
+  <meta name="robots" content="noindex">
+  <title>Unirte al equipo</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="cabecera">
+    <h1>Unirte al equipo</h1>
+  </header>
+  <main class="contenedor">
+    <p id="cargandoInvitacion" class="aviso">Cargando…</p>
+    <p id="errorInvitacion" class="error" role="alert" hidden></p>
+
+    <form id="formUnirse" class="tarjeta" novalidate hidden>
+      <p id="textoUnirse"></p>
+      <label for="uNombre">Tu nombre (solo si es tu primera vez)</label>
+      <input id="uNombre" name="name" maxlength="100" autocomplete="name">
+      <label for="uEmail">Correo electrónico</label>
+      <input id="uEmail" name="email" type="email" maxlength="254" autocomplete="email" required>
+      <label for="uPassword">Contraseña</label>
+      <input id="uPassword" name="password" type="password" maxlength="200" autocomplete="new-password" required>
+      <p class="nota">Si ya tienes cuenta en la aplicación, escribe tu contraseña actual. Si es tu primera vez, elige una nueva (mínimo 10 caracteres).</p>
+      <button type="submit" class="principal">Unirme al negocio</button>
+      <p id="errorUnirse" class="error" role="alert" hidden></p>
+    </form>
+
+    <section id="unidoOk" class="tarjeta" hidden>
+      <h2>Te has unido al equipo</h2>
+      <p>Ya puedes entrar al panel del negocio.</p>
+      <a class="principal enlace-boton" href="index.html">Ir al panel</a>
+    </section>
+  </main>
+  <script src="unirse.js"></script>
+</body>
+</html>

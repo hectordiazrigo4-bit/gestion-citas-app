@@ -149,3 +149,40 @@ Avisos que se generan:
 - **Reactivación** a los 90 días sin visita, solo con consentimiento de comunicaciones.
 
 Los avisos se procesan cada 10 minutos (Cron Trigger). Si falla un envío se reintenta hasta 5 veces con espera creciente. Sin proveedor configurado quedan pendientes y no se gasta ningún intento. Los avisos se borran a los 180 días.
+
+## Equipo
+
+| Método | Ruta | Roles | Descripción |
+|---|---|---|---|
+| GET | `/api/businesses/:id/team` | Todos | Miembros con su rol, servicios que realizan y horario propio. |
+| GET | `/api/businesses/:id/invitations` | Propietario, administrador | Invitaciones pendientes. |
+| POST | `/api/businesses/:id/invitations` | Propietario, administrador | Crea una invitación. Body: `role` (`admin` o `employee`), `email` (opcional). Devuelve el enlace una sola vez. |
+| DELETE | `/api/businesses/:id/invitations/:iid` | Propietario, administrador | Anula una invitación pendiente. |
+| GET | `/api/public/invitations/:token` | Pública | Nombre del negocio y rol que se ofrece. |
+| POST | `/api/public/invitations/:token/accept` | Pública | Acepta la invitación. Body: `email`, `password` y, si la cuenta es nueva, `name`. Crea la sesión. |
+| PATCH | `/api/businesses/:id/members/:uid` | Propietario | Cambia el rol a `admin` o `employee`. El rol del propietario no se cambia. |
+| DELETE | `/api/businesses/:id/members/:uid` | Propietario | Quita a la persona del negocio. No se puede si tiene citas próximas asignadas. |
+| PUT | `/api/businesses/:id/members/:uid/services` | Propietario, administrador | Servicios que realiza. Sin ninguno, puede realizar cualquiera. Body: `service_ids`. |
+| PUT | `/api/businesses/:id/members/:uid/hours` | Propietario, administrador | Horario propio. Sin días, usa el del negocio. Body: `hours` (igual que el horario del negocio). |
+
+Cada cuenta pertenece a un solo negocio. Un enlace de invitación sirve una sola vez y caduca a los 7 días. Si la invitación tiene correo, solo puede aceptarla esa persona.
+
+## Agenda por profesional
+
+- Las citas aceptan `employee_id`. Sin profesional, la cita queda sin asignar.
+- Cada profesional tiene su propia agenda: dos citas solo se solapan si son de la misma persona (o ambas sin asignar). Los bloqueos sin profesional afectan a todos.
+- `GET /availability` acepta `employee_id`. Sin él, si el servicio tiene profesionales asignados, devuelve la unión de sus huecos.
+- La reserva pública acepta `employee_id` opcional. Si no se elige, se asigna a la primera persona que tenga libre ese hueco.
+
+## Cobros
+
+| Método | Ruta | Roles | Descripción |
+|---|---|---|---|
+| GET | `/api/businesses/:id/appointments/:aid/payments` | Todos | Cobros de la cita, cobrado y pendiente. |
+| POST | `/api/businesses/:id/appointments/:aid/payments` | Todos (devoluciones: propietario y administrador) | Registra un cobro o una devolución. Body: `amount` (€), `method` (`efectivo`, `tarjeta`, `transferencia`, `otro`), `kind` (`pago` o `devolucion`), `note` (opcional). |
+
+- No se puede cobrar más del precio de la cita, ni devolver más de lo cobrado. Los límites se comprueban dentro de la misma escritura en la base de datos.
+- No se registran cobros de citas canceladas.
+- No se guarda ningún dato de tarjeta: solo el medio de pago.
+- El gasto total de cada clienta aparece en su ficha (`total_gastado_cents`).
+- El resumen incluye `ingresos_cobrados_cents` y `pagos_pendientes_cents`.

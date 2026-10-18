@@ -60,6 +60,8 @@ function mostrarSeccion(nombre) {
   $("seccionServicios").hidden = nombre !== "servicios";
   $("seccionClientes").hidden = nombre !== "clientes";
   $("seccionAvisos").hidden = nombre !== "avisos";
+  $("seccionEquipo").hidden = nombre !== "equipo";
+  if (nombre === "equipo") cargarSeccionEquipo().catch((err) => alert(err.message));
   if (nombre === "avisos") cargarSeccionAvisos();
   $("seccionAgenda").hidden = nombre !== "agenda";
   $("seccionResumen").hidden = nombre !== "resumen";
@@ -615,6 +617,7 @@ function mostrarDetalleCita(c) {
   const cuando = `${fechaLarga(dia)} · ${horaEn(c.starts_at, agenda.tz)}–${horaEn(c.ends_at, agenda.tz)}`;
   const partes = [c.service_name, cuando, euros(c.price_cents), ESTADO_TEXTO[c.status]];
   if (c.phone) partes.push(c.phone);
+  if (c.employee_name) partes.splice(1, 0, `Profesional: ${c.employee_name}`);
   $("detalleTexto").textContent = partes.join(" · ") + (c.notes ? `\nNotas: ${c.notes}` : "");
   $("detalleTexto").style.whiteSpace = "pre-line";
 
@@ -628,6 +631,7 @@ function mostrarDetalleCita(c) {
   }
   const terminada = c.status === "completed" || c.status === "no_show";
   $("cambiarHora").hidden = terminada;
+  cargarCobros(c.id).catch((err) => mostrarError($("errorCobro"), err.message));
   mostrarError($("errorCita"), "");
   $("detalleCita").hidden = false;
   $("detalleCita").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -658,6 +662,7 @@ async function rellenarSelectores() {
     api(`/api/businesses/${estado.negocioId}/clients`),
     api(`/api/businesses/${estado.negocioId}/services`),
   ]);
+  await rellenarProfesionales();
   $("citaCliente").replaceChildren(...clients.map((c) => new Option(`${c.first_name} ${c.last_name}`, c.id)));
   $("citaServicio").replaceChildren(...services.filter((s) => s.active).map((s) => new Option(`${s.name} · ${euros(s.price_cents)}`, s.id)));
 }
@@ -676,9 +681,11 @@ async function abrirFormCita(cita) {
       $("citaServicio").value = cita.service_id;
       $("citaFecha").value = diaEn(cita.starts_at, agenda.tz);
       $("citaNotas").value = cita.notes || "";
+      $("citaProfesional").value = cita.employee_id || "";
     } else {
       $("citaFecha").value = agenda.fecha;
       $("citaNotas").value = "";
+      $("citaProfesional").value = "";
       $("citaEstado").value = "confirmed";
     }
     mostrarError($("errorFormCita"), "");
@@ -731,6 +738,7 @@ $("formCita").addEventListener("submit", async (e) => {
         service_id: $("citaServicio").value,
         starts: $("citaHueco").value,
         notes: $("citaNotas").value,
+        employee_id: $("citaProfesional").value || null,
         status: c.status,
       });
     } else {
@@ -739,6 +747,7 @@ $("formCita").addEventListener("submit", async (e) => {
         service_id: $("citaServicio").value,
         starts: $("citaHueco").value,
         notes: $("citaNotas").value,
+        employee_id: $("citaProfesional").value || null,
         status: $("citaEstado").value,
       });
     }
@@ -881,6 +890,8 @@ function pintarResumen(datos) {
     ["No presentados", r.no_presentados],
     ["Clientes nuevos", r.clientes_nuevos],
     ["Clientes recurrentes", r.clientes_recurrentes],
+    ["Cobrado", euros(r.ingresos_cobrados_cents)],
+    ["Pendiente de cobro", euros(r.pagos_pendientes_cents)],
     ["Ingresos de completadas", euros(r.ingresos_completadas_cents)],
     ["Ocupación", r.ocupacion_pct === null ? "Sin horario" : `${r.ocupacion_pct} %`],
   ];
@@ -1092,4 +1103,233 @@ async function cargarSeccionAvisos() {
   }
   await rellenarEspera();
   await cargarEspera();
+}
+
+// ---------- Equipo ----------
+
+const ROL_TEXTO = { owner: "Propietario/a", admin: "Administrador/a", employee: "Empleado/a" };
+const DIAS_TEXTO = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+const equipo = { miembros: [], servicios: [], seleccionado: null };
+
+async function cargarSeccionEquipo() {
+  const { miembros } = await api(`/api/businesses/${estado.negocioId}/team`);
+  equipo.miembros = miembros;
+  const { services } = await api(`/api/businesses/${estado.negocioId}/services`);
+  equipo.servicios = services;
+  const lista = $("listaEquipo");
+  lista.replaceChildren();
+  const gestiona = ROLES_QUE_GESTIONAN.includes(estado.rol);
+  for (const m of miembros) {
+    const li = crear("li", `elemento${gestiona && m.role !== "owner" ? " pulsable" : ""}`);
+    const textos = crear("div", "elemento-texto");
+    textos.append(crear("strong", "", m.name));
+    textos.append(crear("span", "detalle", `${m.email} · ${ROL_TEXTO[m.role]}`));
+    li.append(textos);
+    if (gestiona && m.role !== "owner") {
+      li.tabIndex = 0;
+      li.addEventListener("click", () => abrirMiembro(m));
+      li.addEventListener("keydown", (e) => { if (e.key === "Enter") abrirMiembro(m); });
+    }
+    lista.append(li);
+  }
+  $("tarjetaInvitar").hidden = !gestiona;
+  if (gestiona) await cargarInvitaciones();
+}
+
+async function cargarInvitaciones() {
+  const { invitaciones } = await api(`/api/businesses/${estado.negocioId}/invitations`);
+  const lista = $("listaInvitaciones");
+  lista.replaceChildren();
+  $("vacioInvitaciones").hidden = invitaciones.length > 0;
+  for (const i of invitaciones) {
+    const li = crear("li", "elemento");
+    const textos = crear("div", "elemento-texto");
+    textos.append(crear("strong", "", `${ROL_TEXTO[i.role]}${i.email ? ` · ${i.email}` : ""}`));
+    textos.append(crear("span", "detalle", `Caduca el ${new Date(i.expires_at).toLocaleDateString("es-ES")}`));
+    li.append(textos);
+    const quitar = crear("button", "pequeno peligro-pequeno", "Anular");
+    quitar.type = "button";
+    quitar.addEventListener("click", async () => {
+      try {
+        await api(`/api/businesses/${estado.negocioId}/invitations/${i.id}`, "DELETE", {});
+        await cargarInvitaciones();
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+    li.append(quitar);
+    lista.append(li);
+  }
+}
+
+$("crearInvitacion").addEventListener("click", async () => {
+  mostrarError($("errorInvitar"), "");
+  try {
+    const { enlace } = await api(`/api/businesses/${estado.negocioId}/invitations`, "POST", {
+      role: $("invRol").value,
+      email: $("invCorreo").value,
+    });
+    $("enlaceNuevo").value = enlace;
+    $("enlaceInvitacion").hidden = false;
+    $("invCorreo").value = "";
+    await cargarInvitaciones();
+  } catch (err) {
+    mostrarError($("errorInvitar"), err.message);
+  }
+});
+
+$("copiarInvitacion").addEventListener("click", async () => {
+  const campo = $("enlaceNuevo");
+  try {
+    await navigator.clipboard.writeText(campo.value);
+  } catch {
+    campo.select();
+    document.execCommand("copy");
+  }
+  alert("Enlace copiado. Envíaselo a la persona invitada.");
+});
+
+function abrirMiembro(m) {
+  equipo.seleccionado = m;
+  $("tituloMiembro").textContent = m.name;
+  $("miRol").value = m.role;
+  const contenedor = $("miServicios");
+  contenedor.replaceChildren();
+  for (const s of equipo.servicios) {
+    const etiqueta = crear("label", "casilla", s.name);
+    const casilla = document.createElement("input");
+    casilla.type = "checkbox";
+    casilla.value = s.id;
+    casilla.checked = m.services.includes(s.id);
+    etiqueta.prepend(casilla);
+    contenedor.append(etiqueta);
+  }
+  pintarHorarioEditable($("miHorario"), m.hours);
+  $("quitarMiembro").hidden = false;
+  mostrarError($("errorMiembro"), "");
+  $("okMiembro").hidden = true;
+  $("tarjetaMiembro").hidden = false;
+  $("tarjetaMiembro").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+// Horario editable: una fila por día con casilla de abierto y horas.
+function pintarHorarioEditable(contenedor, horas) {
+  const configurado = new Map(horas.map((h) => [h.weekday, h]));
+  contenedor.replaceChildren();
+  for (const dia of [1, 2, 3, 4, 5, 6, 0]) {
+    const actual = configurado.get(dia);
+    const fila = crear("div", "fila-horario");
+    const casilla = document.createElement("input");
+    casilla.type = "checkbox";
+    casilla.checked = !!actual;
+    casilla.dataset.dia = dia;
+    const etiqueta = crear("label", "casilla", DIAS_TEXTO[dia]);
+    etiqueta.prepend(casilla);
+    const apertura = crear("input");
+    apertura.type = "time";
+    apertura.value = actual ? actual.opens : "09:00";
+    apertura.dataset.apertura = dia;
+    const cierre = crear("input");
+    cierre.type = "time";
+    cierre.value = actual ? actual.closes : "18:00";
+    cierre.dataset.cierre = dia;
+    fila.append(etiqueta, apertura, cierre);
+    contenedor.append(fila);
+  }
+}
+
+function leerHorarioEditable(contenedor) {
+  const dias = [];
+  for (const casilla of contenedor.querySelectorAll("input[type=checkbox]")) {
+    if (!casilla.checked) continue;
+    const dia = casilla.dataset.dia;
+    dias.push({
+      weekday: Number(dia),
+      opens: contenedor.querySelector(`[data-apertura="${dia}"]`).value,
+      closes: contenedor.querySelector(`[data-cierre="${dia}"]`).value,
+    });
+  }
+  return dias;
+}
+
+$("guardarMiembro").addEventListener("click", async () => {
+  const m = equipo.seleccionado;
+  mostrarError($("errorMiembro"), "");
+  $("okMiembro").hidden = true;
+  try {
+    const base = `/api/businesses/${estado.negocioId}/members/${m.user_id}`;
+    if (m.role !== "owner" && $("miRol").value !== m.role) {
+      await api(base, "PATCH", { role: $("miRol").value });
+    }
+    const servicios = [...$("miServicios").querySelectorAll("input:checked")].map((c) => c.value);
+    await api(`${base}/services`, "PUT", { service_ids: servicios });
+    await api(`${base}/hours`, "PUT", { hours: leerHorarioEditable($("miHorario")) });
+    $("okMiembro").hidden = false;
+    await cargarSeccionEquipo();
+  } catch (err) {
+    mostrarError($("errorMiembro"), err.message);
+  }
+});
+
+$("quitarMiembro").addEventListener("click", async () => {
+  const m = equipo.seleccionado;
+  if (!confirm(`¿Quitar a ${m.name} del negocio? Dejará de tener acceso al panel.`)) return;
+  try {
+    await api(`/api/businesses/${estado.negocioId}/members/${m.user_id}`, "DELETE", {});
+    $("tarjetaMiembro").hidden = true;
+    await cargarSeccionEquipo();
+  } catch (err) {
+    mostrarError($("errorMiembro"), err.message);
+  }
+});
+
+// ---------- Cobros de una cita ----------
+
+async function cargarCobros(citaId) {
+  const datos = await api(`/api/businesses/${estado.negocioId}/appointments/${citaId}/payments`);
+  $("resumenCobros").textContent = `Precio ${euros(datos.precio_cents)} · Cobrado ${euros(datos.cobrado_cents)} · Pendiente ${euros(datos.pendiente_cents)}`;
+  const lista = $("listaCobros");
+  lista.replaceChildren();
+  const etiquetaMetodo = { efectivo: "Efectivo", tarjeta: "Tarjeta", transferencia: "Transferencia", otro: "Otro" };
+  for (const c of datos.cobros) {
+    const li = crear("li", "elemento");
+    const textos = crear("div", "elemento-texto");
+    const signo = c.kind === "pago" ? "" : "−";
+    textos.append(crear("strong", "", `${signo}${euros(c.amount_cents)} · ${c.kind === "pago" ? "Cobro" : "Devolución"}`));
+    textos.append(crear("span", "detalle", `${etiquetaMetodo[c.method]}${c.note ? ` · ${c.note}` : ""} · ${new Date(c.paid_at).toLocaleDateString("es-ES")}`));
+    li.append(textos);
+    lista.append(li);
+  }
+  $("cobroTipo").querySelector("option[value=devolucion]").disabled = !ROLES_QUE_GESTIONAN.includes(estado.rol);
+  return datos;
+}
+
+$("formCobro").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const boton = e.submitter;
+  boton.disabled = true;
+  mostrarError($("errorCobro"), "");
+  try {
+    await api(`/api/businesses/${estado.negocioId}/appointments/${agenda.citaActual.id}/payments`, "POST", {
+      amount: $("cobroImporte").value,
+      method: $("cobroMetodo").value,
+      kind: $("cobroTipo").value,
+      note: $("cobroNota").value,
+    });
+    e.target.reset();
+    await cargarCobros(agenda.citaActual.id);
+    await cargarAgenda();
+  } catch (err) {
+    mostrarError($("errorCobro"), err.message);
+  } finally {
+    boton.disabled = false;
+  }
+});
+
+// ---------- Profesional en la cita ----------
+
+async function rellenarProfesionales() {
+  const { miembros } = await api(`/api/businesses/${estado.negocioId}/team`);
+  const select = $("citaProfesional");
+  select.replaceChildren(new Option("Sin asignar", ""), ...miembros.map((m) => new Option(m.name, m.user_id)));
 }

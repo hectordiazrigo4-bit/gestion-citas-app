@@ -1,6 +1,6 @@
 const $ = (id) => document.getElementById(id);
 const slug = new URLSearchParams(location.search).get("n") || "";
-const reserva = { negocio: null, servicio: null, dia: null, hueco: null, peticion: 0 };
+const reserva = { negocio: null, servicio: null, dia: null, hueco: null, peticion: 0, profesionales: [] };
 
 function euros(centimos) {
   return `${(centimos / 100).toFixed(2).replace(".", ",")} €`;
@@ -49,8 +49,9 @@ async function iniciar() {
     return;
   }
   try {
-    const { business, services } = await api(`/api/public/businesses/${encodeURIComponent(slug)}`);
+    const { business, services, professionals } = await api(`/api/public/businesses/${encodeURIComponent(slug)}`);
     reserva.negocio = business;
+    reserva.profesionales = professionals;
     document.title = `Reservar en ${business.name}`;
     $("nombreNegocioPublico").textContent = business.name;
     $("horasCancelacion").textContent = `Puedes cancelar sin coste hasta ${business.cancel_hours} horas antes.`;
@@ -91,11 +92,23 @@ function elegirServicio(servicio, boton) {
   reserva.hueco = null;
   for (const b of document.querySelectorAll(".servicio-opcion")) b.setAttribute("aria-pressed", String(b === boton));
   $("diaReserva").min = hoyLocal();
+  const posibles = reserva.profesionales.filter((p) => p.service_ids.includes(servicio.id));
+  $("bloqueProfesional").hidden = posibles.length === 0;
+  $("profesionalReserva").replaceChildren(
+    new Option("Cualquiera disponible", ""),
+    ...posibles.map((p) => new Option(p.name, p.id))
+  );
   $("reservaPaso2").hidden = false;
   $("reservaPaso3").hidden = true;
   if (reserva.dia) cargarHuecos();
   $("reservaPaso2").scrollIntoView({ behavior: "smooth", block: "start" });
 }
+
+$("profesionalReserva").addEventListener("change", () => {
+  reserva.hueco = null;
+  $("reservaPaso3").hidden = true;
+  cargarHuecos();
+});
 
 $("diaReserva").addEventListener("change", (e) => {
   reserva.dia = e.target.value;
@@ -113,7 +126,7 @@ async function cargarHuecos() {
   const peticion = ++reserva.peticion;
   try {
     const { slots, timezone } = await api(
-      `/api/public/businesses/${encodeURIComponent(slug)}/availability?date=${reserva.dia}&service_id=${reserva.servicio.id}`
+      `/api/public/businesses/${encodeURIComponent(slug)}/availability?date=${reserva.dia}&service_id=${reserva.servicio.id}&employee_id=${encodeURIComponent($("profesionalReserva").value)}`
     );
     if (peticion !== reserva.peticion) return;
     reserva.tz = timezone;
@@ -155,6 +168,7 @@ $("reservaPaso3").addEventListener("submit", async (e) => {
       email: datos.email,
       notes: datos.notes,
       privacy: $("rPrivacidad").checked,
+      employee_id: $("profesionalReserva").value || null,
     });
     mostrarConfirmacion(appointment, timezone, cancel_hours);
   } catch (err) {

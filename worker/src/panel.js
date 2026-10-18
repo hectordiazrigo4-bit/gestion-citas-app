@@ -53,6 +53,24 @@ export async function getDashboard(request, env, businessId, url) {
     .bind(businessId, ahora)
     .first();
 
+  const cobro = await env.DB.prepare(
+    `SELECT COALESCE(SUM(CASE WHEN kind = 'pago' THEN amount_cents ELSE -amount_cents END), 0) AS total
+       FROM payments WHERE business_id = ? AND paid_at >= ? AND paid_at < ?`
+  )
+    .bind(businessId, periodo.desdeMs, periodo.hastaMs)
+    .first();
+  const ingresosCobrados = cobro.total;
+  // Pagos pendientes: precio de las citas completadas del periodo menos lo ya cobrado.
+  const completadas = await env.DB.prepare(
+    `SELECT a.price_cents, COALESCE(SUM(CASE WHEN p.kind = 'pago' THEN p.amount_cents WHEN p.kind = 'devolucion' THEN -p.amount_cents ELSE 0 END), 0) AS cobrado
+       FROM appointments a LEFT JOIN payments p ON p.appointment_id = a.id
+      WHERE a.business_id = ? AND a.status = 'completed' AND a.starts_at >= ? AND a.starts_at < ?
+      GROUP BY a.id`
+  )
+    .bind(businessId, periodo.desdeMs, periodo.hastaMs)
+    .all();
+  const pendientes = completadas.results.reduce((t, c) => t + Math.max(0, c.price_cents - c.cobrado), 0);
+
   const porEstado = { pending: 0, confirmed: 0, completed: 0, cancelled: 0, no_show: 0 };
   for (const c of citasPeriodo) porEstado[c.status] += 1;
 
@@ -65,6 +83,8 @@ export async function getDashboard(request, env, businessId, url) {
       no_presentados: porEstado.no_show,
       clientes_nuevos: clientesNuevos.n,
       clientes_recurrentes: recurrentes,
+      ingresos_cobrados_cents: ingresosCobrados,
+      pagos_pendientes_cents: pendientes,
       ingresos_completadas_cents: noCanceladas
         .filter((c) => c.status === "completed")
         .reduce((total, c) => total + c.price_cents, 0),
