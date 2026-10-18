@@ -67,9 +67,17 @@ export async function updateService(request, env, businessId, serviceId) {
 
 export async function deleteService(request, env, businessId, serviceId) {
   await requireBusinessAccess(request, env, businessId, ROLES_QUE_GESTIONAN);
-  const result = await env.DB.prepare("DELETE FROM services WHERE id = ? AND business_id = ?")
-    .bind(serviceId, businessId)
-    .run();
+  let result;
+  try {
+    result = await env.DB.prepare("DELETE FROM services WHERE id = ? AND business_id = ?")
+      .bind(serviceId, businessId)
+      .run();
+  } catch (err) {
+    if (String(err.message).includes("FOREIGN KEY")) {
+      throw new HttpError(409, "Este servicio tiene citas registradas. Desactívalo en lugar de eliminarlo.");
+    }
+    throw err;
+  }
   if (!result.meta.changes) throw new HttpError(404, "Servicio no encontrado");
 
   return json({ ok: true });

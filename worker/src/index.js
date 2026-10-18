@@ -17,11 +17,17 @@ import {
 } from "./http.js";
 import { listServices, createService, updateService, deleteService } from "./services.js";
 import { listClients, createClient, getClient, updateClient, deleteClient } from "./clients.js";
+import { listAppointments, createAppointment, updateAppointment } from "./citas.js";
+import { getHours, saveHours, listBlocks, createBlock, deleteBlock, getAvailability } from "./disponibilidad.js";
 
 const ID = "([0-9a-f-]{36})";
 const RUTA_NEGOCIO = new RegExp(`^/api/businesses/${ID}$`);
 const RUTA_SERVICIOS = new RegExp(`^/api/businesses/${ID}/services(?:/${ID})?$`);
 const RUTA_CLIENTES = new RegExp(`^/api/businesses/${ID}/clients(?:/${ID})?$`);
+const RUTA_CITAS = new RegExp(`^/api/businesses/${ID}/appointments(?:/${ID})?$`);
+const RUTA_DISPONIBILIDAD = new RegExp(`^/api/businesses/${ID}/availability$`);
+const RUTA_HORARIO = new RegExp(`^/api/businesses/${ID}/hours$`);
+const RUTA_BLOQUEOS = new RegExp(`^/api/businesses/${ID}/blocks(?:/${ID})?$`);
 
 export default {
   async fetch(request, env) {
@@ -79,6 +85,31 @@ async function route(request, env, url) {
     if (clientId && method === "GET") return getClient(request, env, businessId, clientId);
     if (clientId && method === "PATCH") return updateClient(request, env, businessId, clientId);
     if (clientId && method === "DELETE") return deleteClient(request, env, businessId, clientId);
+  }
+
+  m = pathname.match(RUTA_CITAS);
+  if (m) {
+    const [, businessId, appointmentId] = m;
+    if (!appointmentId && method === "GET") return listAppointments(request, env, businessId, url);
+    if (!appointmentId && method === "POST") return createAppointment(request, env, businessId);
+    if (appointmentId && method === "PATCH") return updateAppointment(request, env, businessId, appointmentId);
+  }
+
+  m = pathname.match(RUTA_DISPONIBILIDAD);
+  if (m && method === "GET") return getAvailability(request, env, m[1], url);
+
+  m = pathname.match(RUTA_HORARIO);
+  if (m) {
+    if (method === "GET") return getHours(request, env, m[1]);
+    if (method === "PUT") return saveHours(request, env, m[1]);
+  }
+
+  m = pathname.match(RUTA_BLOQUEOS);
+  if (m) {
+    const [, businessId, blockId] = m;
+    if (!blockId && method === "GET") return listBlocks(request, env, businessId, url);
+    if (!blockId && method === "POST") return createBlock(request, env, businessId);
+    if (blockId && method === "DELETE") return deleteBlock(request, env, businessId, blockId);
   }
 
   throw new HttpError(404, "No encontrado");

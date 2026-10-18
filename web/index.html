@@ -48,9 +48,10 @@
 
     <!-- Panel (solo con sesión iniciada) -->
     <section id="vistaPanel" hidden>
-      <nav class="menu-panel" aria-label="Secciones">
+      <nav id="menuPanel" class="menu-panel" aria-label="Secciones">
         <button type="button" class="pestana activa" data-seccion="inicio">Inicio</button>
         <button type="button" class="pestana" data-seccion="servicios">Servicios</button>
+        <button type="button" class="pestana" data-seccion="agenda">Agenda</button>
         <button type="button" class="pestana" data-seccion="clientes">Clientes</button>
       </nav>
 
@@ -157,6 +158,96 @@
           <button type="button" id="eliminarCliente" class="peligro" hidden>Eliminar cliente</button>
           <p id="errorCliente" class="error" role="alert" hidden></p>
         </form>
+      </div>
+
+      <!-- Agenda -->
+      <div id="seccionAgenda" hidden>
+        <div class="tarjeta">
+          <div class="cabecera-lista">
+            <h2>Agenda</h2>
+            <button type="button" id="nuevaCita" class="pequeno">Nueva cita</button>
+          </div>
+          <div class="controles-fecha">
+            <button type="button" class="secundario-pequeno" id="diaAnterior" aria-label="Día anterior">◀</button>
+            <input id="agFecha" type="date" aria-label="Fecha">
+            <button type="button" class="secundario-pequeno" id="diaSiguiente" aria-label="Día siguiente">▶</button>
+          </div>
+          <div class="menu-panel">
+            <button type="button" class="pestana activa" data-vista="dia">Día</button>
+            <button type="button" class="pestana" data-vista="semana">Semana</button>
+            <button type="button" class="pestana" id="hoy">Hoy</button>
+          </div>
+          <ul id="listaCitas" class="lista"></ul>
+          <p id="vacioCitas" class="vacio" hidden>No hay citas en este periodo.</p>
+        </div>
+
+        <div id="detalleCita" class="tarjeta" hidden>
+          <h2 id="detalleTitulo"></h2>
+          <p id="detalleTexto" class="nota"></p>
+          <div class="acciones" id="accionesCita"></div>
+          <button type="button" id="cambiarHora" class="secundario">Cambiar fecha u hora</button>
+          <p id="errorCita" class="error" role="alert" hidden></p>
+        </div>
+
+        <form id="formCita" class="tarjeta" novalidate hidden>
+          <h2 id="tituloFormCita">Nueva cita</h2>
+          <label for="citaCliente">Cliente</label>
+          <select id="citaCliente" required></select>
+          <label for="citaServicio">Servicio</label>
+          <select id="citaServicio" required></select>
+          <label for="citaFecha">Día</label>
+          <input id="citaFecha" type="date" required>
+          <label for="citaHueco">Hora (solo se muestran huecos libres)</label>
+          <select id="citaHueco" required></select>
+          <label for="citaEstado">Estado</label>
+          <select id="citaEstado">
+            <option value="confirmed">Confirmada</option>
+            <option value="pending">Pendiente</option>
+          </select>
+          <label for="citaNotas">Notas</label>
+          <textarea id="citaNotas" rows="2" maxlength="2000"></textarea>
+          <button type="submit" class="principal">Guardar cita</button>
+          <button type="button" id="cancelarCita" class="secundario">Cancelar</button>
+          <p id="errorFormCita" class="error" role="alert" hidden></p>
+        </form>
+
+        <div class="tarjeta" id="tarjetaBloqueos">
+          <h2>Descansos, vacaciones y bloqueos</h2>
+          <p class="nota">Los bloqueos no se pueden poner encima de citas activas. Cancela o mueve antes esas citas.</p>
+          <ul id="listaBloqueos" class="lista"></ul>
+          <p id="vacioBloqueos" class="vacio" hidden>No hay bloqueos en este periodo.</p>
+          <form id="formBloqueo" novalidate hidden>
+            <label for="blTipo">Tipo</label>
+            <select id="blTipo">
+              <option value="descanso">Descanso</option>
+              <option value="vacaciones">Vacaciones</option>
+              <option value="bloqueo">Bloqueo puntual</option>
+            </select>
+            <div class="fila">
+              <div>
+                <label for="blInicio">Desde</label>
+                <input id="blInicio" type="datetime-local" required>
+              </div>
+              <div>
+                <label for="blFin">Hasta</label>
+                <input id="blFin" type="datetime-local" required>
+              </div>
+            </div>
+            <label for="blMotivo">Motivo (opcional)</label>
+            <input id="blMotivo" maxlength="200">
+            <button type="submit" class="principal">Añadir bloqueo</button>
+            <p id="errorBloqueo" class="error" role="alert" hidden></p>
+          </form>
+        </div>
+
+        <div class="tarjeta" id="tarjetaHorario">
+          <h2>Horario semanal</h2>
+          <p class="nota">Los días sin marcar están cerrados.</p>
+          <div id="filasHorario"></div>
+          <button type="button" id="guardarHorario" class="principal">Guardar horario</button>
+          <p id="errorHorario" class="error" role="alert" hidden></p>
+          <p id="okHorario" class="ok" role="status" hidden>Horario guardado.</p>
+        </div>
       </div>
     </section>
   </main>

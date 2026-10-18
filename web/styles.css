@@ -86,7 +86,8 @@ label {
   color: var(--apagado);
 }
 
-input {
+input,
+select {
   width: 100%;
   padding: 12px;
   border: 1px solid var(--linea);
@@ -225,6 +226,53 @@ textarea {
 }
 
 .vacio { color: var(--apagado); font-style: italic; text-align: center; }
+
+.controles-fecha {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.controles-fecha input { flex: 1; }
+
+.secundario-pequeno {
+  padding: 8px 12px;
+  border: 1px solid var(--linea);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--texto);
+  font-size: .95rem;
+  cursor: pointer;
+}
+
+.peligro-pequeno { background: transparent; color: var(--error); border: 1px solid var(--error); }
+
+.acciones { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+
+.acciones .pequeno { flex: 1 1 auto; }
+
+.dia-cabecera {
+  list-style: none;
+  margin: 14px 0 6px;
+  font-weight: 600;
+  text-transform: capitalize;
+  color: var(--acento);
+}
+
+.elemento.cancelada { opacity: .55; }
+
+.fila-horario {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.fila-horario label { margin: 0; color: var(--texto); }
+
+.fila-horario input[type=time] { padding: 8px; }
 
 @media (max-width: 420px) {
   .fila { grid-template-columns: 1fr; }

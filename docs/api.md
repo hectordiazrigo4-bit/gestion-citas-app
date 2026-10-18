@@ -50,4 +50,46 @@ Campos de un cliente: `first_name` y `last_name` (obligatorios), `phone` (se gua
 ## Notas
 
 - Un negocio solo puede ser consultado o modificado por sus miembros; los identificadores se comprueban siempre dentro del negocio.
-- Eliminar un servicio o un cliente es permanente. Cuando existan citas, los servicios con historial se desactivarán en lugar de borrarse.
+- Eliminar un cliente o un servicio es permanente. Si tiene citas registradas, la respuesta es `409`: para un servicio, desactívalo; para un cliente, conserva su historial.
+
+## Horario semanal
+
+| Método | Ruta | Roles | Descripción |
+|---|---|---|---|
+| GET | `/api/businesses/:id/hours` | Todos | Días abiertos y su horario. Sin fila = cerrado. |
+| PUT | `/api/businesses/:id/hours` | Propietario, administrador | Reemplaza el horario completo. Body: `hours: [{ weekday, opens, closes }]` (weekday 0 = domingo, horas `HH:MM`). |
+
+## Bloqueos (descansos, vacaciones y bloqueos puntuales)
+
+| Método | Ruta | Roles | Descripción |
+|---|---|---|---|
+| GET | `/api/businesses/:id/blocks?from=AAAA-MM-DD&to=AAAA-MM-DD` | Todos | Bloqueos que caen en el periodo. |
+| POST | `/api/businesses/:id/blocks` | Propietario, administrador | Crea un bloqueo. Body: `kind` (`descanso`, `vacaciones`, `bloqueo`), `starts`, `ends`, `reason`. |
+| DELETE | `/api/businesses/:id/blocks/:bid` | Propietario, administrador | Quita un bloqueo. |
+
+No se puede bloquear un tramo que ya tiene citas activas (`409`).
+
+## Disponibilidad
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| GET | `/api/businesses/:id/availability?date=AAAA-MM-DD&service_id=ID` | Huecos libres del día para ese servicio, cada 15 minutos, en ISO UTC. Tiene en cuenta el horario, las citas activas, los bloqueos, la duración y el tiempo de preparación. |
+
+## Citas
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| GET | `/api/businesses/:id/appointments?from=AAAA-MM-DD&to=AAAA-MM-DD` | Citas del periodo (máx. 62 días), con nombre del cliente y del servicio. |
+| POST | `/api/businesses/:id/appointments` | Crea una cita. Body: `client_id`, `service_id`, `starts`, `status` (`confirmed` por defecto, o `pending`), `notes`. |
+| PATCH | `/api/businesses/:id/appointments/:aid` | Cambia estado, hora, cliente, servicio o notas (envía todos los campos). |
+
+`starts` acepta hora local del negocio (`AAAA-MM-DDTHH:MM`) o ISO con zona (el valor que devuelve la disponibilidad).
+
+Estados y transiciones permitidas:
+
+- pendiente → confirmada o cancelada
+- confirmada → completada, cancelada o no presentado
+- cancelada → pendiente (reactivar)
+- completada y no presentado son definitivas. Solo permiten cambiar las notas.
+
+Solapamientos: una cita activa (pendiente, confirmada o completada) ocupa desde su inicio hasta el fin del servicio más el tiempo de preparación. Dos citas no pueden solaparse, y una cita tampoco puede caer dentro de un bloqueo. Esta regla la aplica la base de datos con triggers (`db/migrations/0004_agenda.sql`), así que se cumple aunque la aplicación falle. Si el hueco está ocupado, la respuesta es `409`.

@@ -98,9 +98,17 @@ export async function updateClient(request, env, businessId, clientId) {
 
 export async function deleteClient(request, env, businessId, clientId) {
   await requireBusinessAccess(request, env, businessId);
-  const result = await env.DB.prepare("DELETE FROM clients WHERE id = ? AND business_id = ?")
-    .bind(clientId, businessId)
-    .run();
+  let result;
+  try {
+    result = await env.DB.prepare("DELETE FROM clients WHERE id = ? AND business_id = ?")
+      .bind(clientId, businessId)
+      .run();
+  } catch (err) {
+    if (String(err.message).includes("FOREIGN KEY")) {
+      throw new HttpError(409, "Este cliente tiene citas registradas y no se puede eliminar.");
+    }
+    throw err;
+  }
   if (!result.meta.changes) throw new HttpError(404, "Cliente no encontrado");
 
   return json({ ok: true });
