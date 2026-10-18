@@ -262,6 +262,25 @@ textarea {
 
 .elemento.cancelada { opacity: .55; }
 
+.kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+.kpi {
+  background: var(--superficie);
+  border: 1px solid var(--linea);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.kpi .etiqueta { font-size: .8rem; }
+.kpi-valor { font-size: 1.35rem; }
+
+.servicio-barra { display: grid; grid-template-columns: 1fr; gap: 4px; margin-bottom: 10px; }
+.barra { height: 8px; background: var(--linea); border-radius: 99px; overflow: hidden; }
+.barra > span { display: block; height: 100%; background: var(--acento); border-radius: 99px; }
+
+@media (max-width: 380px) { .kpi-grid { grid-template-columns: 1fr; } }
+
 .calendario { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 10px; }
 .cabecera-dia { text-align: center; font-size: .75rem; color: var(--apagado); padding: 4px 0; }
 .celda-vacia { min-height: 48px; }

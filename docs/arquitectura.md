@@ -58,7 +58,7 @@ docs/           Documentación
 - [x] Fase 2: autenticación, negocios, roles y base de datos (registro, inicio de sesión, sesiones, roles y aislamiento por negocio; pendientes de producción en `docs/despliegue.md`).
 - [x] Fase 3: servicios, clientes y calendario (ver [api.md](api.md)).
 - [x] Fase 4: horarios, bloqueos, disponibilidad, prevención de solapamientos y página pública de reservas (ver [api.md](api.md)).
-- [ ] Fase 5: dashboard y estadísticas.
+- [x] Fase 5: resumen con indicadores reales por día, semana y mes (ver [api.md](api.md)). Los cobros reales quedan para la Fase 7.
 - [ ] Fase 6: recordatorios y automatizaciones.
 - [ ] Fase 7: empleados, pagos y permisos avanzados.
 - [ ] Fase 8: suscripciones, pruebas y despliegue.

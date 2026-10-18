@@ -110,3 +110,18 @@ Cada negocio tiene un identificador público (`slug`), que aparece en el enlace 
 - Límite: 10 intentos de reserva por hora y por IP para cada negocio (`429`). Solo se guarda un hash de la IP.
 
 La propietaria puede cambiar las horas de cancelación con `PATCH /api/businesses/:id` (campo `cancel_hours`, entre 0 y 168).
+
+## Resumen del negocio
+
+| Método | Ruta | Roles | Descripción |
+|---|---|---|---|
+| GET | `/api/businesses/:id/dashboard?period=day\|week\|month&date=AAAA-MM-DD` | Todos | Indicadores del periodo que contiene `date` (semana de lunes a domingo; mes completo). |
+
+Respuesta:
+
+- `resumen`: `citas` (sin canceladas), `canceladas`, `no_presentados`, `clientes_nuevos` (fichas creadas en el periodo), `clientes_recurrentes` (clientes con cita en el periodo que ya tenían citas antes), `ingresos_completadas_cents` (suma del precio de las citas completadas), `ocupacion_pct` (minutos con cita frente a minutos de horario abierto, descontando bloqueos; `null` si no hay horario), `por_estado` y `servicios_top`.
+- `hoy`: citas de hoy sin canceladas.
+- `proximas`: las 5 siguientes pendientes o confirmadas.
+- `tareas`: `citas_por_confirmar`, `citas_sin_cerrar` (pasadas y todavía pendientes o confirmadas) y `clientes_inactivos` (última cita completada hace más de 90 días).
+
+Los ingresos son de citas completadas, no de cobros. Los cobros registrados llegarán con la Fase 7.

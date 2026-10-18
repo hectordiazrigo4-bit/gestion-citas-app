@@ -60,6 +60,8 @@ function mostrarSeccion(nombre) {
   $("seccionServicios").hidden = nombre !== "servicios";
   $("seccionClientes").hidden = nombre !== "clientes";
   $("seccionAgenda").hidden = nombre !== "agenda";
+  $("seccionResumen").hidden = nombre !== "resumen";
+  if (nombre === "resumen") cargarResumen().catch((err) => alert(err.message));
   if (nombre === "servicios") cargarServicios();
   if (nombre === "clientes") cargarClientes();
   if (nombre === "agenda") cargarAgenda().catch((err) => alert(err.message));
@@ -847,4 +849,120 @@ $("guardarHorario").addEventListener("click", async () => {
   } catch (err) {
     mostrarError($("errorHorario"), err.message);
   }
+});
+
+// ---------- Resumen ----------
+
+const resumen = { periodo: "day", fecha: hoyLocal(), tz: "Europe/Madrid" };
+const ESTADO_RESUMEN = { pending: "Pendiente", confirmed: "Confirmada", completed: "Completada", cancelled: "Cancelada", no_show: "No presentado" };
+
+async function cargarResumen() {
+  const datos = await api(`/api/businesses/${estado.negocioId}/dashboard?period=${resumen.periodo}&date=${resumen.fecha}`);
+  resumen.tz = datos.timezone;
+  pintarResumen(datos);
+}
+
+function fechaCorta(fecha) {
+  return new Date(`${fecha}T12:00:00`).toLocaleDateString("es-ES", { day: "numeric", month: "short" });
+}
+
+function pintarResumen(datos) {
+  const r = datos.resumen;
+  const { desde, hasta, tipo } = datos.periodo;
+  $("resumenFecha").value = resumen.fecha;
+  $("resumenPeriodo").textContent = tipo === "day" ? fechaLarga(desde) : `${fechaCorta(desde)} – ${fechaCorta(hasta)}`;
+
+  const indicadores = [
+    ["Citas", r.citas],
+    ["Canceladas", r.canceladas],
+    ["No presentados", r.no_presentados],
+    ["Clientes nuevos", r.clientes_nuevos],
+    ["Clientes recurrentes", r.clientes_recurrentes],
+    ["Ingresos de completadas", euros(r.ingresos_completadas_cents)],
+    ["Ocupación", r.ocupacion_pct === null ? "Sin horario" : `${r.ocupacion_pct} %`],
+  ];
+  const cuadro = $("resumenIndicadores");
+  cuadro.replaceChildren();
+  for (const [etiqueta, valor] of indicadores) {
+    const tarjeta = crear("div", "kpi");
+    tarjeta.append(crear("span", "etiqueta", etiqueta), crear("strong", "kpi-valor", String(valor)));
+    cuadro.append(tarjeta);
+  }
+
+  // Servicios: barra proporcional al más pedido
+  const contenedor = $("resumenServicios");
+  contenedor.replaceChildren();
+  const maximo = Math.max(1, ...r.servicios_top.map((s) => s.veces));
+  for (const s of r.servicios_top) {
+    const fila = crear("div", "servicio-barra");
+    fila.append(crear("span", "", `${s.nombre} (${s.veces})`));
+    const barra = crear("div", "barra");
+    const relleno = crear("span");
+    relleno.style.width = `${Math.round((s.veces / maximo) * 100)}%`;
+    barra.append(relleno);
+    fila.append(barra);
+    contenedor.append(fila);
+  }
+  $("vacioServiciosResumen").hidden = r.servicios_top.length > 0;
+
+  pintarListaCitas($("resumenHoy"), datos.hoy, false);
+  $("vacioHoy").hidden = datos.hoy.length > 0;
+  pintarListaCitas($("resumenProximas"), datos.proximas, true);
+  $("vacioProximas").hidden = datos.proximas.length > 0;
+
+  const t = datos.tareas;
+  const tareas = $("resumenTareas");
+  tareas.replaceChildren();
+  const pendientes = [
+    [t.citas_por_confirmar, "citas pendientes de confirmar", "Ver agenda"],
+    [t.citas_sin_cerrar, "citas pasadas sin marcar como completadas o no presentadas", "Ver agenda"],
+    [t.clientes_inactivos.total, `clientes sin volver en más de 90 días${t.clientes_inactivos.nombres.length ? ": " + t.clientes_inactivos.nombres.join(", ") : ""}`, null],
+  ];
+  for (const [cantidad, texto, accion] of pendientes) {
+    const li = crear("li", "elemento");
+    li.append(crear("span", "", `${cantidad} ${texto}`));
+    if (cantidad > 0 && accion) {
+      const boton = crear("button", "pequeno", accion);
+      boton.type = "button";
+      boton.addEventListener("click", () => mostrarSeccion("agenda"));
+      li.append(boton);
+    }
+    tareas.append(li);
+  }
+}
+
+function pintarListaCitas(lista, citas, conFecha) {
+  lista.replaceChildren();
+  for (const c of citas) {
+    const li = crear("li", `elemento${c.status === "cancelled" ? " cancelada" : ""}`);
+    const textos = crear("div", "elemento-texto");
+    const hora = horaEn(c.starts_at, resumen.tz);
+    const cuando = conFecha ? `${fechaCorta(diaEn(c.starts_at, resumen.tz))} · ${hora}` : hora;
+    textos.append(crear("strong", "", `${cuando} · ${c.client_name}`));
+    textos.append(crear("span", "detalle", `${c.service_name} · ${euros(c.price_cents)}`));
+    li.append(textos, crear("span", "insignia", ESTADO_RESUMEN[c.status]));
+    lista.append(li);
+  }
+}
+
+document.querySelectorAll("[data-periodo]").forEach((boton) => {
+  boton.addEventListener("click", () => {
+    resumen.periodo = boton.dataset.periodo;
+    document.querySelectorAll("[data-periodo]").forEach((b) => b.classList.toggle("activa", b === boton));
+    cargarResumen().catch((err) => alert(err.message));
+  });
+});
+
+function moverResumen(sentido) {
+  if (resumen.periodo === "month") resumen.fecha = sumarMeses(resumen.fecha, sentido);
+  else if (resumen.periodo === "week") resumen.fecha = sumarDias(resumen.fecha, 7 * sentido);
+  else resumen.fecha = sumarDias(resumen.fecha, sentido);
+  cargarResumen().catch((err) => alert(err.message));
+}
+
+$("resumenAnterior").addEventListener("click", () => moverResumen(-1));
+$("resumenSiguiente").addEventListener("click", () => moverResumen(1));
+$("resumenFecha").addEventListener("change", (e) => {
+  resumen.fecha = e.target.value;
+  cargarResumen().catch((err) => alert(err.message));
 });

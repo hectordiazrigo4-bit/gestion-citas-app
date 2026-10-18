@@ -20,6 +20,7 @@ import { listClients, createClient, getClient, updateClient, deleteClient } from
 import { listAppointments, createAppointment, updateAppointment } from "./citas.js";
 import { getHours, saveHours, listBlocks, createBlock, deleteBlock, getAvailability } from "./disponibilidad.js";
 import { generarSlug, getPublicBusiness, getPublicAvailability, crearReservaPublica } from "./publica.js";
+import { getDashboard } from "./panel.js";
 
 const ID = "([0-9a-f-]{36})";
 const RUTA_NEGOCIO = new RegExp(`^/api/businesses/${ID}$`);
@@ -28,6 +29,7 @@ const RUTA_CLIENTES = new RegExp(`^/api/businesses/${ID}/clients(?:/${ID})?$`);
 const RUTA_CITAS = new RegExp(`^/api/businesses/${ID}/appointments(?:/${ID})?$`);
 const RUTA_DISPONIBILIDAD = new RegExp(`^/api/businesses/${ID}/availability$`);
 const RUTA_HORARIO = new RegExp(`^/api/businesses/${ID}/hours$`);
+const RUTA_RESUMEN = new RegExp(`^/api/businesses/${ID}/dashboard$`);
 const RUTA_BLOQUEOS = new RegExp(`^/api/businesses/${ID}/blocks(?:/${ID})?$`);
 const RUTA_PUBLICA = /^\/api\/public\/businesses\/([a-z0-9-]{3,80})(\/availability|\/bookings)?$/;
 
@@ -107,6 +109,9 @@ async function route(request, env, url) {
 
   m = pathname.match(RUTA_DISPONIBILIDAD);
   if (m && method === "GET") return getAvailability(request, env, m[1], url);
+
+  m = pathname.match(RUTA_RESUMEN);
+  if (m && method === "GET") return getDashboard(request, env, m[1], url);
 
   m = pathname.match(RUTA_HORARIO);
   if (m) {

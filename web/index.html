@@ -50,6 +50,7 @@
     <section id="vistaPanel" hidden>
       <nav id="menuPanel" class="menu-panel" aria-label="Secciones">
         <button type="button" class="pestana activa" data-seccion="inicio">Inicio</button>
+        <button type="button" class="pestana" data-seccion="resumen">Resumen</button>
         <button type="button" class="pestana" data-seccion="servicios">Servicios</button>
         <button type="button" class="pestana" data-seccion="agenda">Agenda</button>
         <button type="button" class="pestana" data-seccion="clientes">Clientes</button>
@@ -91,6 +92,51 @@
         </div>
 
         <button type="button" id="btnSalir" class="secundario">Cerrar sesión</button>
+      </div>
+
+      <!-- Resumen -->
+      <div id="seccionResumen" hidden>
+        <div class="tarjeta">
+          <h2>Resumen</h2>
+          <div class="menu-panel" id="periodosResumen">
+            <button type="button" class="pestana activa" data-periodo="day">Día</button>
+            <button type="button" class="pestana" data-periodo="week">Semana</button>
+            <button type="button" class="pestana" data-periodo="month">Mes</button>
+          </div>
+          <div class="controles-fecha">
+            <button type="button" class="secundario-pequeno" id="resumenAnterior" aria-label="Periodo anterior">◀</button>
+            <input id="resumenFecha" type="date" aria-label="Fecha del resumen">
+            <button type="button" class="secundario-pequeno" id="resumenSiguiente" aria-label="Periodo siguiente">▶</button>
+          </div>
+          <p id="resumenPeriodo" class="etiqueta"></p>
+        </div>
+
+        <div class="kpi-grid" id="resumenIndicadores"></div>
+
+        <div class="tarjeta">
+          <h2>Servicios más pedidos</h2>
+          <div id="resumenServicios"></div>
+          <p id="vacioServiciosResumen" class="vacio" hidden>Todavía no hay citas en este periodo.</p>
+        </div>
+
+        <div class="tarjeta">
+          <h2>Hoy</h2>
+          <ul id="resumenHoy" class="lista"></ul>
+          <p id="vacioHoy" class="vacio" hidden>No tienes citas hoy.</p>
+        </div>
+
+        <div class="tarjeta">
+          <h2>Próximas citas</h2>
+          <ul id="resumenProximas" class="lista"></ul>
+          <p id="vacioProximas" class="vacio" hidden>No hay citas próximas.</p>
+        </div>
+
+        <div class="tarjeta">
+          <h2>Tareas pendientes</h2>
+          <ul id="resumenTareas" class="lista"></ul>
+        </div>
+
+        <p class="nota">Ingresos: suma de las citas completadas. Los cobros registrados (efectivo, tarjeta o transferencia) llegarán con la Fase 7.</p>
       </div>
 
       <!-- Servicios -->
