@@ -150,7 +150,7 @@ function parseClient(body) {
 
 // Guarda el teléfono en formato internacional (+34…) para que el mismo número
 // escrito de distintas formas no se pueda duplicar. Sin prefijo, se asume España (+34).
-function parsePhone(value) {
+export function parsePhone(value) {
   const raw = optionalText(value, "teléfono", 20);
   if (raw === null) return null;
   let numero = raw.replace(/[\s.-]/g, "");

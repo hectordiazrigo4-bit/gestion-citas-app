@@ -65,11 +65,25 @@
         </div>
 
         <div class="tarjeta">
-          <h2>Cambiar nombre del negocio</h2>
-          <p class="nota">Solo el propietario y los administradores pueden cambiarlo.</p>
+          <h2>Enlace para reservar</h2>
+          <p class="nota">Compártelo por WhatsApp, redes o tu web. Los clientes eligen servicio, día y hora, y tú confirmas la cita desde la agenda.</p>
+          <label for="enlaceReserva">Tu enlace</label>
+          <input id="enlaceReserva" readonly>
+          <div class="acciones">
+            <button type="button" id="copiarEnlace" class="pequeno">Copiar enlace</button>
+            <a id="compartirWhatsApp" class="pequeno enlace-boton" target="_blank" rel="noopener">Compartir por WhatsApp</a>
+          </div>
+          <p id="okCopiar" class="ok" role="status" hidden>Enlace copiado.</p>
+        </div>
+
+        <div class="tarjeta">
+          <h2>Ajustes del negocio</h2>
+          <p class="nota">Solo el propietario y los administradores pueden cambiarlos.</p>
           <form id="formNegocio" novalidate>
             <label for="nuevoNombre">Nombre del negocio</label>
             <input id="nuevoNombre" name="name" maxlength="120" required>
+            <label for="nuevaCancelacion">Horas de antelación para cancelar sin coste</label>
+            <input id="nuevaCancelacion" name="cancel_hours" type="number" min="0" max="168" step="1" inputmode="numeric" required>
             <button type="submit" class="principal">Guardar</button>
           </form>
           <p id="errorNegocio" class="error" role="alert" hidden></p>
@@ -175,8 +189,11 @@
           <div class="menu-panel">
             <button type="button" class="pestana activa" data-vista="dia">Día</button>
             <button type="button" class="pestana" data-vista="semana">Semana</button>
+            <button type="button" class="pestana" data-vista="mes">Mes</button>
             <button type="button" class="pestana" id="hoy">Hoy</button>
           </div>
+          <p id="tituloPeriodo" class="etiqueta" hidden></p>
+          <div id="calendarioMes" class="calendario" hidden></div>
           <ul id="listaCitas" class="lista"></ul>
           <p id="vacioCitas" class="vacio" hidden>No hay citas en este periodo.</p>
         </div>

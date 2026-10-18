@@ -43,25 +43,31 @@ export async function createAppointment(request, env, businessId) {
   await requireBusinessAccess(request, env, businessId);
   const tz = await businessTimezone(env, businessId);
   const body = await readJson(request);
-  const datos = await validarCita(env, businessId, tz, body, Date.now());
+  const cita = await crearCita(env, businessId, tz, body);
+  return json({ appointment: toDto({ ...cita, client_name: null }) }, 201);
+}
 
+// Crea una cita validada. Lo usan el panel y las reservas públicas.
+// Si hay un solapamiento, la base de datos lo rechaza y aquí se traduce a 409.
+export async function crearCita(env, businessId, tz, body, { source = "panel", privacyAccepted = false } = {}) {
+  const datos = await validarCita(env, businessId, tz, body, Date.now());
   const id = crypto.randomUUID();
   const now = Date.now();
   try {
     await env.DB.prepare(
       `INSERT INTO appointments
          (id, business_id, client_id, service_id, service_name, price_cents, starts_at, ends_at,
-          blocked_until, status, notes, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          blocked_until, status, notes, source, privacy_accepted_at, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
       .bind(id, businessId, datos.client_id, datos.service_id, datos.service_name, datos.price_cents,
-        datos.starts_at, datos.ends_at, datos.blocked_until, datos.status, datos.notes, now, now)
+        datos.starts_at, datos.ends_at, datos.blocked_until, datos.status, datos.notes, source,
+        privacyAccepted ? now : null, now, now)
       .run();
   } catch (err) {
     throw errorDeHorario(err);
   }
-
-  return json({ appointment: toDto({ id, ...datos, client_name: null }) }, 201);
+  return { id, ...datos };
 }
 
 export async function updateAppointment(request, env, businessId, appointmentId) {

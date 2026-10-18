@@ -85,6 +85,8 @@ async function cargarPanel() {
   $("nombreNegocio").textContent = business.name;
   $("rolUsuario").textContent = ROLES[business.role] || business.role;
   $("nuevoNombre").value = business.name;
+  $("nuevaCancelacion").value = business.cancel_hours;
+  mostrarEnlaceReserva(business.slug);
   $("formNegocio").hidden = !ROLES_QUE_GESTIONAN.includes(business.role);
 
   const puedeGestionar = ROLES_QUE_GESTIONAN.includes(business.role);
@@ -152,6 +154,25 @@ $("btnSalir").addEventListener("click", async () => {
 
 document.querySelectorAll("#menuPanel button").forEach((boton) => {
   boton.addEventListener("click", () => mostrarSeccion(boton.dataset.seccion));
+});
+
+// ---------- Inicio: enlace de reserva ----------
+
+function mostrarEnlaceReserva(slug) {
+  const enlace = `${location.origin}/reservar.html?n=${encodeURIComponent(slug)}`;
+  $("enlaceReserva").value = enlace;
+  $("compartirWhatsApp").href = `https://wa.me/?text=${encodeURIComponent("Puedes reservar tu cita aquí: " + enlace)}`;
+}
+
+$("copiarEnlace").addEventListener("click", async () => {
+  const campo = $("enlaceReserva");
+  try {
+    await navigator.clipboard.writeText(campo.value);
+  } catch {
+    campo.select();
+    document.execCommand("copy");
+  }
+  $("okCopiar").hidden = false;
 });
 
 // ---------- Inicio: nombre del negocio ----------
@@ -439,9 +460,23 @@ function fechaLarga(fecha) {
 }
 
 function rangoAgenda() {
-  return agenda.vista === "semana"
-    ? { desde: agenda.fecha, hasta: sumarDias(agenda.fecha, 6) }
-    : { desde: agenda.fecha, hasta: agenda.fecha };
+  if (agenda.vista === "semana") return { desde: agenda.fecha, hasta: sumarDias(agenda.fecha, 6) };
+  if (agenda.vista === "mes") {
+    const [y, m] = agenda.fecha.split("-").map(Number);
+    const ultimo = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    const mm = String(m).padStart(2, "0");
+    return { desde: `${y}-${mm}-01`, hasta: `${y}-${mm}-${String(ultimo).padStart(2, "0")}` };
+  }
+  return { desde: agenda.fecha, hasta: agenda.fecha };
+}
+
+function sumarMeses(fecha, meses) {
+  const [y, m, d] = fecha.split("-").map(Number);
+  const destino = new Date(Date.UTC(y, m - 1 + meses, 1));
+  const ultimoDia = new Date(Date.UTC(destino.getUTCFullYear(), destino.getUTCMonth() + 1, 0)).getUTCDate();
+  const dia = Math.min(d, ultimoDia);
+  const mm = String(destino.getUTCMonth() + 1).padStart(2, "0");
+  return `${destino.getUTCFullYear()}-${mm}-${String(dia).padStart(2, "0")}`;
 }
 
 async function cargarAgenda() {
@@ -453,7 +488,16 @@ async function cargarAgenda() {
   ]);
   agenda.tz = citas.timezone;
   $("agFecha").value = agenda.fecha;
-  pintarCitas(citas.appointments);
+  const mes = agenda.vista === "mes";
+  $("calendarioMes").hidden = !mes;
+  $("tituloPeriodo").hidden = !mes;
+  $("listaCitas").hidden = mes;
+  $("vacioCitas").hidden = true;
+  if (mes) {
+    pintarMes(citas.appointments, desde);
+  } else {
+    pintarCitas(citas.appointments);
+  }
   pintarBloqueos(bloques.blocks);
   if (ROLES_QUE_GESTIONAN.includes(estado.rol) && !agenda.horarioCargado) await cargarHorario();
 }
@@ -480,6 +524,48 @@ function pintarCitas(citas) {
     li.addEventListener("click", () => mostrarDetalleCita(c));
     li.addEventListener("keydown", (e) => { if (e.key === "Enter") mostrarDetalleCita(c); });
     lista.append(li);
+  }
+}
+
+// Cuadrícula del mes: número de citas por día. Pulsar un día abre su vista de día.
+function pintarMes(citas, desde) {
+  const [y, m] = desde.split("-").map(Number);
+  $("tituloPeriodo").textContent = new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString("es-ES", { month: "long", year: "numeric", timeZone: "UTC" });
+
+  const porDia = new Map();
+  for (const c of citas) {
+    if (c.status === "cancelled") continue;
+    const dia = diaEn(c.starts_at, agenda.tz);
+    porDia.set(dia, (porDia.get(dia) || 0) + 1);
+  }
+
+  const contenedor = $("calendarioMes");
+  contenedor.replaceChildren();
+  for (const nombre of ["L", "M", "X", "J", "V", "S", "D"]) contenedor.append(crear("span", "cabecera-dia", nombre));
+
+  const primerDia = new Date(Date.UTC(y, m - 1, 1)).getUTCDay(); // 0 = domingo
+  const huecos = (primerDia + 6) % 7;
+  for (let i = 0; i < huecos; i++) contenedor.append(crear("span", "celda-vacia"));
+
+  const diasDelMes = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const hoy = hoyLocal();
+  for (let d = 1; d <= diasDelMes; d++) {
+    const fecha = `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    const total = porDia.get(fecha) || 0;
+    const boton = crear("button", "celda-dia");
+    boton.type = "button";
+    boton.append(crear("span", "numero-dia", String(d)));
+    if (total) boton.append(crear("span", "contador", String(total)));
+    boton.setAttribute("aria-label", `${fecha}: ${total} ${total === 1 ? "cita" : "citas"}`);
+    if (fecha === hoy) boton.classList.add("hoy");
+    if (total) boton.classList.add("con-citas");
+    boton.addEventListener("click", () => {
+      agenda.fecha = fecha;
+      agenda.vista = "dia";
+      document.querySelectorAll("[data-vista]").forEach((b) => b.classList.toggle("activa", b.dataset.vista === "dia"));
+      cargarAgenda().catch((err) => alert(err.message));
+    });
+    contenedor.append(boton);
   }
 }
 
@@ -673,7 +759,9 @@ $("diaSiguiente").addEventListener("click", () => cambiarFecha(1));
 $("hoy").addEventListener("click", () => { agenda.fecha = hoyLocal(); cargarAgenda().catch((err) => alert(err.message)); });
 
 function cambiarFecha(sentido) {
-  agenda.fecha = sumarDias(agenda.fecha, sentido * (agenda.vista === "semana" ? 7 : 1));
+  agenda.fecha = agenda.vista === "mes"
+    ? sumarMeses(agenda.fecha, sentido)
+    : sumarDias(agenda.fecha, sentido * (agenda.vista === "semana" ? 7 : 1));
   cargarAgenda().catch((err) => alert(err.message));
 }
 

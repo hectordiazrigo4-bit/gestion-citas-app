@@ -19,6 +19,7 @@ import { listServices, createService, updateService, deleteService } from "./ser
 import { listClients, createClient, getClient, updateClient, deleteClient } from "./clients.js";
 import { listAppointments, createAppointment, updateAppointment } from "./citas.js";
 import { getHours, saveHours, listBlocks, createBlock, deleteBlock, getAvailability } from "./disponibilidad.js";
+import { generarSlug, getPublicBusiness, getPublicAvailability, crearReservaPublica } from "./publica.js";
 
 const ID = "([0-9a-f-]{36})";
 const RUTA_NEGOCIO = new RegExp(`^/api/businesses/${ID}$`);
@@ -28,6 +29,7 @@ const RUTA_CITAS = new RegExp(`^/api/businesses/${ID}/appointments(?:/${ID})?$`)
 const RUTA_DISPONIBILIDAD = new RegExp(`^/api/businesses/${ID}/availability$`);
 const RUTA_HORARIO = new RegExp(`^/api/businesses/${ID}/hours$`);
 const RUTA_BLOQUEOS = new RegExp(`^/api/businesses/${ID}/blocks(?:/${ID})?$`);
+const RUTA_PUBLICA = /^\/api\/public\/businesses\/([a-z0-9-]{3,80})(\/availability|\/bookings)?$/;
 
 export default {
   async fetch(request, env) {
@@ -62,7 +64,15 @@ async function route(request, env, url) {
   if (method === "POST" && pathname === "/api/auth/logout") return logout(request, env);
   if (method === "GET" && pathname === "/api/me") return me(request, env);
 
-  let m = pathname.match(RUTA_NEGOCIO);
+  let m = pathname.match(RUTA_PUBLICA);
+  if (m) {
+    const [, slug, accion] = m;
+    if (!accion && method === "GET") return getPublicBusiness(request, env, slug);
+    if (accion === "/availability" && method === "GET") return getPublicAvailability(request, env, slug, url);
+    if (accion === "/bookings" && method === "POST") return crearReservaPublica(request, env, slug);
+  }
+
+  m = pathname.match(RUTA_NEGOCIO);
   if (m) {
     if (method === "GET") return getBusiness(request, env, m[1]);
     if (method === "PATCH") return updateBusiness(request, env, m[1]);
@@ -126,6 +136,7 @@ async function register(request, env) {
 
   const userId = crypto.randomUUID();
   const businessId = crypto.randomUUID();
+  const slug = generarSlug(businessName);
   const now = Date.now();
   const passwordHash = await hashPassword(password);
   const session = await newSession(env, userId, now);
@@ -136,9 +147,10 @@ async function register(request, env) {
       env.DB.prepare(
         "INSERT INTO users (id, email, password_hash, name, created_at) VALUES (?, ?, ?, ?, ?)"
       ).bind(userId, email, passwordHash, name, now),
-      env.DB.prepare("INSERT INTO businesses (id, name, created_at) VALUES (?, ?, ?)").bind(
+      env.DB.prepare("INSERT INTO businesses (id, name, slug, created_at) VALUES (?, ?, ?, ?)").bind(
         businessId,
         businessName,
+        slug,
         now
       ),
       env.DB.prepare(
@@ -208,7 +220,7 @@ async function me(request, env) {
 
 async function getBusiness(request, env, businessId) {
   const { role } = await requireBusinessAccess(request, env, businessId);
-  const business = await env.DB.prepare("SELECT id, name, created_at FROM businesses WHERE id = ?")
+  const business = await env.DB.prepare("SELECT id, name, slug, cancel_hours, created_at FROM businesses WHERE id = ?")
     .bind(businessId)
     .first();
 
@@ -219,9 +231,15 @@ async function updateBusiness(request, env, businessId) {
   const { role } = await requireBusinessAccess(request, env, businessId, ["owner", "admin"]);
   const body = await readJson(request);
   const name = requireText(body.name, "nombre del negocio", 120);
-  await env.DB.prepare("UPDATE businesses SET name = ? WHERE id = ?").bind(name, businessId).run();
+  const horasCancelacion = body.cancel_hours === undefined ? 24 : Number(body.cancel_hours);
+  if (!Number.isInteger(horasCancelacion) || horasCancelacion < 0 || horasCancelacion > 168) {
+    throw new HttpError(400, "Las horas de cancelación deben ser un número entero entre 0 y 168");
+  }
+  await env.DB.prepare("UPDATE businesses SET name = ?, cancel_hours = ? WHERE id = ?")
+    .bind(name, horasCancelacion, businessId)
+    .run();
 
-  return json({ business: { id: businessId, name, role } });
+  return json({ business: { id: businessId, name, cancel_hours: horasCancelacion, role } });
 }
 
 // ---------- Sesiones ----------

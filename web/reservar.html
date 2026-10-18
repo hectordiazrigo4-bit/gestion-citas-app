@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f6e56">
+  <meta name="robots" content="noindex">
+  <title>Reservar cita</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="cabecera">
+    <h1 id="nombreNegocioPublico">Reservar cita</h1>
+    <p class="subtitulo" id="horasCancelacion"></p>
+  </header>
+
+  <main class="contenedor">
+    <p id="cargandoReserva" class="aviso">Cargando…</p>
+    <p id="errorGeneral" class="error" role="alert" hidden></p>
+
+    <section id="reservaPaso1" class="tarjeta" hidden>
+      <h2>1. Elige un servicio</h2>
+      <div id="listaServiciosPublicos" class="lista"></div>
+    </section>
+
+    <section id="reservaPaso2" class="tarjeta" hidden>
+      <h2>2. Elige el día</h2>
+      <label for="diaReserva">Día</label>
+      <input id="diaReserva" type="date">
+      <p id="sinHuecos" class="vacio" hidden>No hay huecos libres ese día. Prueba con otra fecha.</p>
+      <h2 class="separado">3. Elige la hora</h2>
+      <div id="listaHuecos" class="huecos"></div>
+    </section>
+
+    <form id="reservaPaso3" class="tarjeta" novalidate hidden>
+      <h2>4. Tus datos</h2>
+      <p id="resumenReserva" class="nota"></p>
+      <div class="fila">
+        <div>
+          <label for="rNombre">Nombre</label>
+          <input id="rNombre" name="first_name" maxlength="80" autocomplete="given-name" required>
+        </div>
+        <div>
+          <label for="rApellidos">Apellidos</label>
+          <input id="rApellidos" name="last_name" maxlength="120" autocomplete="family-name" required>
+        </div>
+      </div>
+      <label for="rTelefono">Teléfono</label>
+      <input id="rTelefono" name="phone" type="tel" maxlength="20" autocomplete="tel" inputmode="tel" placeholder="Ej.: 600 111 222" required>
+      <label for="rEmail">Correo electrónico (opcional)</label>
+      <input id="rEmail" name="email" type="email" maxlength="254" autocomplete="email">
+      <label for="rNotas">Comentarios (opcional)</label>
+      <textarea id="rNotas" name="notes" rows="2" maxlength="500"></textarea>
+      <label class="casilla"><input id="rPrivacidad" name="privacy" type="checkbox" required> He leído y acepto la política de privacidad. Mis datos se usarán solo para gestionar esta cita.</label>
+      <button type="submit" class="principal">Solicitar la cita</button>
+      <p id="errorReserva" class="error" role="alert" hidden></p>
+    </form>
+
+    <section id="reservaConfirmada" class="tarjeta" hidden>
+      <h2>Solicitud recibida</h2>
+      <p id="textoConfirmacion"></p>
+      <div class="codigo" id="codigoReserva"></div>
+      <p class="nota" id="condicionesCancelacion"></p>
+      <p class="nota">Guarda este código por si necesitas consultarlo con el negocio.</p>
+    </section>
+  </main>
+
+  <script src="reservar.js"></script>
+</body>
+</html>

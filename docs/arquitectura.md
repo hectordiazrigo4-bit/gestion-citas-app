@@ -57,7 +57,7 @@ docs/           Documentación
 - [x] Fase 1: documentación y estructura inicial.
 - [x] Fase 2: autenticación, negocios, roles y base de datos (registro, inicio de sesión, sesiones, roles y aislamiento por negocio; pendientes de producción en `docs/despliegue.md`).
 - [x] Fase 3: servicios, clientes y calendario (ver [api.md](api.md)).
-- [~] Fase 4: horarios, bloqueos, disponibilidad y prevención de solapamientos hechos. Pendiente: página pública de reservas online.
+- [x] Fase 4: horarios, bloqueos, disponibilidad, prevención de solapamientos y página pública de reservas (ver [api.md](api.md)).
 - [ ] Fase 5: dashboard y estadísticas.
 - [ ] Fase 6: recordatorios y automatizaciones.
 - [ ] Fase 7: empleados, pagos y permisos avanzados.

@@ -114,9 +114,13 @@ export async function deleteBlock(request, env, businessId, blockId) {
 
 export async function getAvailability(request, env, businessId, url) {
   await requireBusinessAccess(request, env, businessId);
+  return json(await huecosLibres(env, businessId, url.searchParams.get("date"), url.searchParams.get("service_id") || ""));
+}
+
+// Huecos libres de un día para un servicio. Lo usan el panel y la página pública de reservas.
+export async function huecosLibres(env, businessId, fechaTexto, serviceId) {
   const tz = await businessTimezone(env, businessId);
-  const dia = dayBounds(tz, url.searchParams.get("date"));
-  const serviceId = url.searchParams.get("service_id") || "";
+  const dia = dayBounds(tz, fechaTexto);
 
   const servicio = await env.DB.prepare(
     "SELECT duration_min, prep_min, active FROM services WHERE id = ? AND business_id = ?"
@@ -131,7 +135,7 @@ export async function getAvailability(request, env, businessId, url) {
   )
     .bind(businessId, dia.weekday)
     .first();
-  if (!horario) return json({ timezone: tz, slots: [] });
+  if (!horario) return { timezone: tz, slots: [], hours: null };
 
   const { y, mo, d } = dia.parts;
   const abre = zonedToUtc(tz, y, mo, d, Math.floor(horario.opens_min / 60), horario.opens_min % 60);
@@ -158,7 +162,7 @@ export async function getAvailability(request, env, businessId, url) {
     if (!choca) slots.push(new Date(inicio).toISOString());
   }
 
-  return json({ timezone: tz, slots, hours: minutesToTime(horario.opens_min) + "–" + minutesToTime(horario.closes_min) });
+  return { timezone: tz, slots, hours: minutesToTime(horario.opens_min) + "–" + minutesToTime(horario.closes_min) };
 }
 
 // ---------- Utilidades ----------

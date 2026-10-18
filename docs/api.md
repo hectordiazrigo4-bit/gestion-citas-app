@@ -93,3 +93,20 @@ Estados y transiciones permitidas:
 - completada y no presentado son definitivas. Solo permiten cambiar las notas.
 
 Solapamientos: una cita activa (pendiente, confirmada o completada) ocupa desde su inicio hasta el fin del servicio más el tiempo de preparación. Dos citas no pueden solaparse, y una cita tampoco puede caer dentro de un bloqueo. Esta regla la aplica la base de datos con triggers (`db/migrations/0004_agenda.sql`), así que se cumple aunque la aplicación falle. Si el hueco está ocupado, la respuesta es `409`.
+
+## Reservas públicas (sin sesión)
+
+Cada negocio tiene un identificador público (`slug`), que aparece en el enlace de reserva: `/reservar.html?n=SLUG`. Estas rutas solo exponen servicios activos y huecos libres; nunca datos de clientes ni de otras citas.
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| GET | `/api/public/businesses/:slug` | Nombre, zona horaria, horas de cancelación y servicios activos. |
+| GET | `/api/public/businesses/:slug/availability?date=AAAA-MM-DD&service_id=ID` | Huecos libres del día para ese servicio. |
+| POST | `/api/public/businesses/:slug/bookings` | Solicita una cita. Body: `service_id`, `starts` (ISO de un hueco), `first_name`, `last_name`, `phone`, `email` (opcional), `notes` (opcional), `privacy: true`. |
+
+- Las reservas web entran como **pendientes**. El negocio las confirma desde la agenda.
+- Si el teléfono ya existe en el negocio, la reserva usa esa ficha; no se crea un cliente duplicado.
+- Antes de guardar, se vuelve a comprobar que el hueco sigue libre (`409` si ya no lo está) y la base de datos vuelve a impedir solapamientos.
+- Límite: 10 intentos de reserva por hora y por IP para cada negocio (`429`). Solo se guarda un hash de la IP.
+
+La propietaria puede cambiar las horas de cancelación con `PATCH /api/businesses/:id` (campo `cancel_hours`, entre 0 y 168).
