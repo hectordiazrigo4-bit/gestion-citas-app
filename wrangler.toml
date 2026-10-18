@@ -13,7 +13,7 @@ run_worker_first = true # el Worker decide: /api/* va a la API y el resto a ASSE
 [[d1_databases]]
 binding = "DB"
 database_name = "gestion-citas"
-database_id = "REEMPLAZAR_CON_ID_DE_D1"
+database_id = "21d5084f-a9b4-4aac-9dc4-15fa4776340e"
 migrations_dir = "db/migrations"
 
 # Proceso programado: recordatorios, seguimientos y envío de la cola de avisos (cada 10 minutos).

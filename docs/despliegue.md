@@ -20,7 +20,9 @@
    npm test
    ```
 
-## Crear la base de datos en Cloudflare (una sola vez)
+## Base de datos en Cloudflare
+
+La base `gestion-citas` (región Europa Occidental) ya está creada en tu cuenta y tiene aplicadas las migraciones 0001 a 0007. Su identificador está en `wrangler.toml`. Si algún día hay que crear otra, sigue estos pasos:
 
 1. Entra en `https://dash.cloudflare.com` y ve a **Storage & Databases → D1 SQL Database**.
 2. Pulsa **Create Database**, nombre `gestion-citas`, y confirma.
