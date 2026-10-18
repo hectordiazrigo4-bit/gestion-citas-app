@@ -21,6 +21,10 @@ Alternativa considerada: Supabase, con Row Level Security (RLS) en la propia bas
 - Todas las consultas filtran por `business_id` en el servidor.
 - D1 no tiene RLS, así que esta comprobación debe estar en el código y cubierta por pruebas.
 
+## Un negocio por cuenta
+
+Cada cuenta trabaja con un único negocio. La restricción está en la base de datos (`db/migrations/0002_un_negocio_por_usuario.sql`), así que ningún fallo de la aplicación puede asignar dos negocios a la misma persona. Los empleados se añadirán más adelante como usuarios vinculados al negocio del propietario.
+
 ## Roles previstos
 
 - **Propietario:** todo el negocio, incluida la facturación.
