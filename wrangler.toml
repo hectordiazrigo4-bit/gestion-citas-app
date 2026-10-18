@@ -1,0 +1,17 @@
+name = "gestion-citas"
+main = "worker/src/index.js"
+compatibility_date = "2024-11-01"
+
+# Web estática (carpeta web/) servida por el mismo Worker: sin dominios cruzados ni CORS.
+[assets]
+directory = "./web"
+binding = "ASSETS"
+run_worker_first = true # el Worker decide: /api/* va a la API y el resto a ASSETS
+
+# Base de datos D1. Hay que crearla una vez en Cloudflare y pegar aquí su ID
+# (ver docs/despliegue.md). En local no hace falta.
+[[d1_databases]]
+binding = "DB"
+database_name = "gestion-citas"
+database_id = "REEMPLAZAR_CON_ID_DE_D1"
+migrations_dir = "db/migrations"

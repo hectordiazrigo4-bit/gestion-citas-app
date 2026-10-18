@@ -1,0 +1,20 @@
+{
+  "name": "gestion-citas-app",
+  "version": "0.2.0",
+  "private": true,
+  "description": "App SaaS de gestión de citas y clientes",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "test": "node --test \"worker/test/**/*.test.js\"",
+    "db:migrate:local": "wrangler d1 migrations apply gestion-citas --local",
+    "db:migrate:remote": "wrangler d1 migrations apply gestion-citas --remote",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^3.114.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

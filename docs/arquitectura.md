@@ -51,7 +51,7 @@ docs/           Documentación
 ## Estado de las fases
 
 - [x] Fase 1: documentación y estructura inicial.
-- [ ] Fase 2: autenticación, negocios, roles y base de datos.
+- [x] Fase 2: autenticación, negocios, roles y base de datos (registro, inicio de sesión, sesiones, roles y aislamiento por negocio; pendientes de producción en `docs/despliegue.md`).
 - [ ] Fase 3: servicios, clientes y calendario.
 - [ ] Fase 4: reservas online y prevención de solapamientos.
 - [ ] Fase 5: dashboard y estadísticas.

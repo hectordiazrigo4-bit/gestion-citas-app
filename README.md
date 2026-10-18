@@ -6,7 +6,9 @@ Cada negocio tiene sus datos completamente separados. Se usa desde móvil, table
 
 ## Estado actual
 
-Fase 1 en curso: documentación de la arquitectura y estructura inicial del proyecto. Todavía no hay funcionalidades.
+Fase 2 completada en local: registro, inicio de sesión, sesiones seguras, roles y aislamiento por negocio. Ver cómo probarla y desplegarla en [docs/despliegue.md](docs/despliegue.md).
+
+Todavía no hay agenda, clientes ni reservas: llegan en las fases 3 y 4.
 
 ## Fases previstas
 

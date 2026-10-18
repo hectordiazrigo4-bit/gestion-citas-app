@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f6e56">
+  <title>Gestión de citas</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="cabecera">
+    <h1>Gestión de citas</h1>
+  </header>
+
+  <main class="contenedor">
+    <p id="cargando" class="aviso">Cargando…</p>
+
+    <!-- Acceso y registro -->
+    <section id="vistaAcceso" class="tarjeta" hidden>
+      <div class="pestanas" role="tablist">
+        <button type="button" id="pestanaEntrar" class="pestana activa" role="tab" aria-selected="true">Entrar</button>
+        <button type="button" id="pestanaRegistro" class="pestana" role="tab" aria-selected="false">Crear cuenta</button>
+      </div>
+
+      <form id="formEntrar" novalidate>
+        <label for="entrarEmail">Correo electrónico</label>
+        <input id="entrarEmail" name="email" type="email" autocomplete="email" required>
+        <label for="entrarPassword">Contraseña</label>
+        <input id="entrarPassword" name="password" type="password" autocomplete="current-password" required>
+        <button type="submit" class="principal">Entrar</button>
+      </form>
+
+      <form id="formRegistro" novalidate hidden>
+        <label for="regNombre">Tu nombre</label>
+        <input id="regNombre" name="name" autocomplete="name" maxlength="100" required>
+        <label for="regNegocio">Nombre del negocio</label>
+        <input id="regNegocio" name="businessName" autocomplete="organization" maxlength="120" required>
+        <label for="regEmail">Correo electrónico</label>
+        <input id="regEmail" name="email" type="email" autocomplete="email" required>
+        <label for="regPassword">Contraseña (mínimo 10 caracteres)</label>
+        <input id="regPassword" name="password" type="password" autocomplete="new-password" minlength="10" maxlength="200" required>
+        <button type="submit" class="principal">Crear cuenta</button>
+      </form>
+
+      <p id="errorAcceso" class="error" role="alert" hidden></p>
+    </section>
+
+    <!-- Panel (solo con sesión iniciada) -->
+    <section id="vistaPanel" hidden>
+      <div class="tarjeta">
+        <p class="etiqueta">Negocio</p>
+        <h2 id="nombreNegocio"></h2>
+        <p class="etiqueta">Tu rol: <span id="rolUsuario"></span></p>
+      </div>
+
+      <div class="tarjeta">
+        <h2>Usuario</h2>
+        <p id="datosUsuario"></p>
+      </div>
+
+      <div class="tarjeta">
+        <h2>Cambiar nombre del negocio</h2>
+        <p class="nota">Solo el propietario y los administradores pueden cambiarlo.</p>
+        <form id="formNegocio" novalidate>
+          <label for="nuevoNombre">Nombre del negocio</label>
+          <input id="nuevoNombre" name="name" maxlength="120" required>
+          <button type="submit" class="principal">Guardar</button>
+        </form>
+        <p id="errorNegocio" class="error" role="alert" hidden></p>
+        <p id="okNegocio" class="ok" role="status" hidden>Cambios guardados.</p>
+      </div>
+
+      <button type="button" id="btnSalir" class="secundario">Cerrar sesión</button>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
