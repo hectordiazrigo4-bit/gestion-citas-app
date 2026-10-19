@@ -2,6 +2,34 @@ const $ = (id) => document.getElementById(id);
 const slug = new URLSearchParams(location.search).get("n") || "";
 const reserva = { negocio: null, servicio: null, dia: null, hueco: null, peticion: 0, profesionales: [] };
 
+// Manifiesto propio del negocio: al instalar, la app abre directamente esta página de reserva.
+const enlaceManifiesto = document.querySelector('link[rel="manifest"]');
+if (enlaceManifiesto && slug) enlaceManifiesto.href = `/api/public/businesses/${encodeURIComponent(slug)}/manifest`;
+
+// Android y ordenador: el navegador ofrece instalar la app y lo mostramos con un botón.
+let eventoInstalar = null;
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  eventoInstalar = e;
+  $("bloqueInstalar").hidden = false;
+  $("botonInstalar").hidden = false;
+});
+$("botonInstalar").addEventListener("click", async () => {
+  if (!eventoInstalar) return;
+  eventoInstalar.prompt();
+  await eventoInstalar.userChoice;
+  eventoInstalar = null;
+  $("botonInstalar").hidden = true;
+});
+
+// iPhone no tiene botón de instalación: explicamos los pasos en Safari.
+const esIos = /iPhone|iPad|iPod/.test(navigator.userAgent);
+const yaInstalada = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+if (esIos && !yaInstalada) {
+  $("bloqueInstalar").hidden = false;
+  $("ayudaIphone").hidden = false;
+}
+
 function euros(centimos) {
   return `${(centimos / 100).toFixed(2).replace(".", ",")} €`;
 }

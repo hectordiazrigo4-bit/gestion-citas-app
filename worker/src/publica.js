@@ -209,3 +209,31 @@ function fechaLocal(timezone, ms) {
   const p = localParts(timezone, ms);
   return `${p.y}-${String(p.mo).padStart(2, "0")}-${String(p.d).padStart(2, "0")}`;
 }
+
+// Manifiesto de instalación propio de cada negocio: la app instalada abre directamente su página de reserva.
+export async function getPublicManifest(request, env, slug) {
+  const negocio = await negocioPorSlug(env, slug);
+  const manifiesto = {
+    id: `/reservar.html?n=${slug}`,
+    name: `Reservar en ${negocio.name}`,
+    short_name: negocio.name.slice(0, 12),
+    start_url: `/reservar.html?n=${slug}`,
+    scope: "/reservar.html",
+    display: "standalone",
+    orientation: "portrait",
+    background_color: "#f5f5f2",
+    theme_color: "#0f6e56",
+    lang: "es",
+    icons: [
+      { src: "/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+      { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+    ],
+  };
+  return new Response(JSON.stringify(manifiesto), {
+    headers: {
+      "Content-Type": "application/manifest+json; charset=utf-8",
+      "Cache-Control": "no-cache",
+      "X-Content-Type-Options": "nosniff",
+    },
+  });
+}

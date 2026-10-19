@@ -19,7 +19,7 @@ import { listServices, createService, updateService, deleteService } from "./ser
 import { listClients, createClient, getClient, updateClient, deleteClient } from "./clients.js";
 import { listAppointments, createAppointment, updateAppointment } from "./citas.js";
 import { getHours, saveHours, listBlocks, createBlock, deleteBlock, getAvailability } from "./disponibilidad.js";
-import { generarSlug, getPublicBusiness, getPublicAvailability, crearReservaPublica } from "./publica.js";
+import { generarSlug, getPublicBusiness, getPublicAvailability, crearReservaPublica, getPublicManifest } from "./publica.js";
 import { getDashboard } from "./panel.js";
 import { ejecutarAvisos, listarAvisos, reintentarAviso, listarEspera, anadirEspera, quitarEspera } from "./avisos.js";
 import { listarEquipo, listarInvitaciones, crearInvitacion, quitarInvitacion, verInvitacion, aceptarInvitacion, cambiarRol, quitarMiembro, guardarServiciosMiembro, guardarHorarioMiembro } from "./equipo.js";
@@ -41,7 +41,7 @@ const RUTA_MIEMBRO = new RegExp(`^/api/businesses/${ID}/members/${ID}(?:/(servic
 const RUTA_COBROS = new RegExp(`^/api/businesses/${ID}/appointments/${ID}/payments$`);
 const RUTA_INVITACION_PUBLICA = /^\/api\/public\/invitations\/([A-Za-z0-9_-]{20,80})(\/accept)?$/;
 const RUTA_BLOQUEOS = new RegExp(`^/api/businesses/${ID}/blocks(?:/${ID})?$`);
-const RUTA_PUBLICA = /^\/api\/public\/businesses\/([a-z0-9-]{3,80})(\/availability|\/bookings)?$/;
+const RUTA_PUBLICA = /^\/api\/public\/businesses\/([a-z0-9-]{3,80})(\/availability|\/bookings|\/manifest)?$/;
 
 export default {
   // Proceso programado (ver "triggers" en wrangler.toml): recordatorios, seguimientos y cola de envíos.
@@ -94,6 +94,7 @@ async function route(request, env, url) {
     if (!accion && method === "GET") return getPublicBusiness(request, env, slug);
     if (accion === "/availability" && method === "GET") return getPublicAvailability(request, env, slug, url);
     if (accion === "/bookings" && method === "POST") return crearReservaPublica(request, env, slug);
+    if (accion === "/manifest" && method === "GET") return getPublicManifest(request, env, slug);
   }
 
   m = pathname.match(RUTA_NEGOCIO);
