@@ -1,6 +1,6 @@
 {
-  "name": "Gestión de citas",
-  "short_name": "Citas",
+  "name": "CitaPro",
+  "short_name": "CitaPro",
   "description": "Agenda, clientes y reservas online para tu negocio",
   "start_url": "./index.html",
   "scope": "./",
