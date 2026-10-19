@@ -19,6 +19,10 @@
    ```
    npm test
    ```
+6. Pruebas de la API (con la app arrancada en el paso 3, en otra terminal):
+   ```
+   npm run test:api
+   ```
 
 ## Base de datos en Cloudflare
 
@@ -51,11 +55,11 @@ En esta fase no hace falta ningún secreto: las sesiones usan tokens aleatorios 
 
 ## Pendiente antes de producción
 
-- Redactar la política de privacidad real del negocio. La casilla de reservas enlaza a ese texto y todavía no existe una página publicada.
+- Revisar `web/privacidad.html`: es un borrador con datos entre corchetes que deben completarse y revisarse con un asesor legal. La casilla de reservas enlaza a esa página.
 - Confirmaciones por correo y WhatsApp de las reservas: llegan en la Fase 6, cuando se configuren el proveedor de correo y la API de WhatsApp. Hasta entonces la página muestra la confirmación en pantalla y no se simula ningún envío.
-- Aplicar también las migraciones 0002 a 0007 en la base real (`npm run db:migrate:remote`).
-
-- Límite de intentos de inicio de sesión (protección frente a fuerza bruta).
+- Aplicar también las migraciones 0002 a 0008 en la base real (`npm run db:migrate:remote`). La 0008 es imprescindible para el inicio de sesión: sin ella la app responde con error al entrar.
+- Límite de intentos de inicio de sesión: 10 intentos fallidos por correo y 30 por IP cada 15 minutos (ya implementado).
+- Derechos del cliente: exportar sus datos en JSON y anonimizar la ficha desde el panel (ya implementado).
 - Recuperación de contraseña.
 - Verificación del correo al registrarse.
 - Copias de seguridad automáticas de D1 (revisar el plan de Cloudflare).

@@ -11,12 +11,13 @@ import {
   parsePassword,
   requireUser,
   requireBusinessAccess,
+  superaLimiteLogin,
   sessionCookie,
   clearSessionCookie,
   readCookie,
 } from "./http.js";
 import { listServices, createService, updateService, deleteService } from "./services.js";
-import { listClients, createClient, getClient, updateClient, deleteClient } from "./clients.js";
+import { listClients, createClient, getClient, updateClient, deleteClient, anonimizarCliente, exportarCliente } from "./clients.js";
 import { listAppointments, createAppointment, updateAppointment } from "./citas.js";
 import { getHours, saveHours, listBlocks, createBlock, deleteBlock, getAvailability } from "./disponibilidad.js";
 import { generarSlug, getPublicBusiness, getPublicAvailability, crearReservaPublica, getPublicManifest } from "./publica.js";
@@ -29,6 +30,7 @@ const ID = "([0-9a-f-]{36})";
 const RUTA_NEGOCIO = new RegExp(`^/api/businesses/${ID}$`);
 const RUTA_SERVICIOS = new RegExp(`^/api/businesses/${ID}/services(?:/${ID})?$`);
 const RUTA_CLIENTES = new RegExp(`^/api/businesses/${ID}/clients(?:/${ID})?$`);
+const RUTA_CLIENTE_DATOS = new RegExp(`^/api/businesses/${ID}/clients/${ID}/(anonymize|export)$`);
 const RUTA_CITAS = new RegExp(`^/api/businesses/${ID}/appointments(?:/${ID})?$`);
 const RUTA_DISPONIBILIDAD = new RegExp(`^/api/businesses/${ID}/availability$`);
 const RUTA_HORARIO = new RegExp(`^/api/businesses/${ID}/hours$`);
@@ -110,6 +112,13 @@ async function route(request, env, url) {
     if (!serviceId && method === "POST") return createService(request, env, businessId);
     if (serviceId && method === "PATCH") return updateService(request, env, businessId, serviceId);
     if (serviceId && method === "DELETE") return deleteService(request, env, businessId, serviceId);
+  }
+
+  m = pathname.match(RUTA_CLIENTE_DATOS);
+  if (m) {
+    const [, businessId, clientId, accion] = m;
+    if (accion === "anonymize" && method === "POST") return anonimizarCliente(request, env, businessId, clientId);
+    if (accion === "export" && method === "GET") return exportarCliente(request, env, businessId, clientId);
   }
 
   m = pathname.match(RUTA_CLIENTES);
@@ -243,6 +252,9 @@ async function login(request, env) {
   const body = await readJson(request);
   const email = parseEmail(body.email);
   const password = typeof body.password === "string" ? body.password : "";
+  if (await superaLimiteLogin(request, env, email)) {
+    throw new HttpError(429, "Demasiados intentos de acceso. Espera 15 minutos e inténtalo de nuevo.");
+  }
 
   const user = await env.DB.prepare("SELECT id, email, name, password_hash FROM users WHERE email = ?")
     .bind(email)

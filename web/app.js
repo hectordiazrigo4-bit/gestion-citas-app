@@ -346,10 +346,40 @@ async function abrirCliente(id) {
     $("eliminarCliente").hidden = false;
     mostrarError($("errorCliente"), "");
     formCliente.hidden = false;
+    pintarHistorial(client);
     formCliente.scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (err) {
     alert(err.message);
   }
+}
+
+// Muestra las citas del cliente, sus cifras y las acciones de datos (RGPD).
+function pintarHistorial(client) {
+  const lista = $("listaHistorial");
+  lista.replaceChildren();
+  const fmt = (iso) => new Date(iso).toLocaleString("es-ES", { dateStyle: "medium", timeStyle: "short", timeZone: agenda.tz });
+
+  $("resumenCliente").textContent = [
+    `Visitas completadas: ${client.citas.filter((c) => c.status === "completed").length}`,
+    `Total cobrado: ${euros(client.total_gastado_cents)}`,
+    client.ultima_visita ? `Última visita: ${fmt(client.ultima_visita)}` : "Sin visitas completadas",
+    client.proxima_cita ? `Próxima cita: ${fmt(client.proxima_cita)}` : "Sin próxima cita",
+  ].join(" · ");
+
+  for (const c of client.citas) {
+    const li = crear("li", "elemento");
+    const textos = crear("div", "elemento-texto");
+    textos.append(crear("strong", "", `${fmt(c.starts_at)} · ${c.service_name}`));
+    textos.append(crear("span", "detalle", `${ESTADO_TEXTO[c.status] || c.status} · ${euros(c.price_cents)}`));
+    li.append(textos);
+    lista.append(li);
+  }
+  $("vacioHistorial").hidden = client.citas.length > 0;
+
+  const gestiona = ROLES_QUE_GESTIONAN.includes(estado.rol);
+  $("descargarCliente").hidden = !gestiona;
+  $("anonimizarCliente").hidden = !gestiona;
+  $("historialCliente").hidden = false;
 }
 
 function nuevoCliente() {
@@ -357,6 +387,7 @@ function nuevoCliente() {
   formCliente.reset();
   $("tituloFormCliente").textContent = "Nuevo cliente";
   $("eliminarCliente").hidden = true;
+  $("historialCliente").hidden = true;
   mostrarError($("errorCliente"), "");
   formCliente.hidden = false;
   $("clNombre").focus();
@@ -364,6 +395,7 @@ function nuevoCliente() {
 
 function cerrarFormCliente() {
   formCliente.hidden = true;
+  $("historialCliente").hidden = true;
   estado.clienteId = null;
 }
 
@@ -404,6 +436,23 @@ $("eliminarCliente").addEventListener("click", async () => {
   if (!confirm(`¿Eliminar a ${nombre}? Se borrarán sus datos y no se podrá recuperar.`)) return;
   try {
     await api(`/api/businesses/${estado.negocioId}/clients/${estado.clienteId}`, "DELETE");
+    cerrarFormCliente();
+    await cargarClientes();
+  } catch (err) {
+    mostrarError($("errorCliente"), err.message);
+  }
+});
+
+$("descargarCliente").addEventListener("click", () => {
+  // El servidor responde con un archivo adjunto: el navegador lo descarga sin cambiar de página.
+  window.location.href = `/api/businesses/${estado.negocioId}/clients/${estado.clienteId}/export`;
+});
+
+$("anonimizarCliente").addEventListener("click", async () => {
+  const nombre = `${$("clNombre").value} ${$("clApellidos").value}`.trim();
+  if (!confirm(`¿Anonimizar a ${nombre}? Se borrarán su nombre, teléfono, correo, notas y comunicaciones. Sus citas y cobros se conservan sin datos personales. No se puede deshacer.`)) return;
+  try {
+    await api(`/api/businesses/${estado.negocioId}/clients/${estado.clienteId}/anonymize`, "POST");
     cerrarFormCliente();
     await cargarClientes();
   } catch (err) {

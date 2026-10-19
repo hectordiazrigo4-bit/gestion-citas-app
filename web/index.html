@@ -302,6 +302,17 @@
           <button type="button" id="eliminarCliente" class="peligro" hidden>Eliminar cliente</button>
           <p id="errorCliente" class="error" role="alert" hidden></p>
         </form>
+        <section id="historialCliente" class="tarjeta" hidden>
+          <h2>Historial de citas</h2>
+          <p id="resumenCliente" class="nota"></p>
+          <ul id="listaHistorial" class="lista"></ul>
+          <p id="vacioHistorial" class="vacio" hidden>Todavía no tiene citas registradas.</p>
+          <div class="acciones">
+            <button type="button" id="descargarCliente" class="secundario" hidden>Descargar datos (JSON)</button>
+            <button type="button" id="anonimizarCliente" class="peligro" hidden>Anonimizar cliente</button>
+          </div>
+          <p class="nota">Descargar datos entrega una copia de la información del cliente. Anonimizar borra su nombre, teléfono, correo y notas, pero conserva las citas y cobros para las cifras del negocio. No se puede deshacer.</p>
+        </section>
       </div>
 
       <!-- Agenda -->

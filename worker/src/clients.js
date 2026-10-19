@@ -41,6 +41,17 @@ export async function listClients(request, env, businessId, url) {
 export async function getClient(request, env, businessId, clientId) {
   await requireBusinessAccess(request, env, businessId);
   const row = await findClient(env, businessId, clientId);
+  const { results: citas } = await env.DB.prepare(
+    `SELECT id, starts_at, service_name, price_cents, status FROM appointments
+      WHERE client_id = ? AND business_id = ? ORDER BY starts_at DESC LIMIT 100`
+  )
+    .bind(clientId, businessId)
+    .all();
+  const ahora = Date.now();
+  const ultima = citas.find((c) => c.status === "completed");
+  const proxima = citas
+    .filter((c) => (c.status === "pending" || c.status === "confirmed") && c.starts_at >= ahora)
+    .sort((a, b) => a.starts_at - b.starts_at)[0];
   const gasto = await env.DB.prepare(
     `SELECT COALESCE(SUM(CASE WHEN p.kind = 'pago' THEN p.amount_cents ELSE -p.amount_cents END), 0) AS total
        FROM payments p JOIN appointments a ON a.id = p.appointment_id
@@ -48,7 +59,21 @@ export async function getClient(request, env, businessId, clientId) {
   )
     .bind(clientId, businessId)
     .first();
-  return json({ client: { ...toDto(row), total_gastado_cents: gasto.total } });
+  return json({
+    client: {
+      ...toDto(row),
+      total_gastado_cents: gasto.total,
+      ultima_visita: ultima ? new Date(ultima.starts_at).toISOString() : null,
+      proxima_cita: proxima ? new Date(proxima.starts_at).toISOString() : null,
+      citas: citas.map((c) => ({
+        id: c.id,
+        starts_at: new Date(c.starts_at).toISOString(),
+        service_name: c.service_name,
+        price_cents: c.price_cents,
+        status: c.status,
+      })),
+    },
+  });
 }
 
 export async function createClient(request, env, businessId) {
@@ -112,7 +137,7 @@ export async function deleteClient(request, env, businessId, clientId) {
       .run();
   } catch (err) {
     if (String(err.message).includes("FOREIGN KEY")) {
-      throw new HttpError(409, "Este cliente tiene citas registradas y no se puede eliminar.");
+      throw new HttpError(409, "Este cliente tiene citas registradas. Usa «Anonimizar cliente», que borra sus datos personales y conserva las cifras del negocio.");
     }
     throw err;
   }
@@ -216,4 +241,82 @@ function toDto(row) {
     consent_at: row.consent_at ?? null,
     created_at: row.created_at ?? null,
   };
+}
+
+// Borra los datos personales del cliente y conserva sus citas y cobros sin identificarlo.
+// Solo propietario y administrador.
+export async function anonimizarCliente(request, env, businessId, clientId) {
+  await requireBusinessAccess(request, env, businessId, ["owner", "admin"]);
+  await findClient(env, businessId, clientId);
+  const ahora = Date.now();
+  await env.DB.batch([
+    env.DB.prepare(
+      `UPDATE clients
+          SET first_name = 'Anonimizado', last_name = '', phone = NULL, email = NULL, notes = NULL,
+              tags = '[]', marketing_consent = 0, consent_at = NULL, updated_at = ?
+        WHERE id = ? AND business_id = ?`
+    ).bind(ahora, clientId, businessId),
+    env.DB.prepare("UPDATE appointments SET notes = NULL WHERE client_id = ? AND business_id = ?").bind(clientId, businessId),
+    env.DB.prepare("DELETE FROM notifications WHERE client_id = ? AND business_id = ?").bind(clientId, businessId),
+    env.DB.prepare("DELETE FROM waitlist WHERE client_id = ? AND business_id = ?").bind(clientId, businessId),
+  ]);
+  return json({ ok: true });
+}
+
+// Exporta todos los datos de un cliente en JSON (derecho de acceso y portabilidad).
+// Solo propietario y administrador.
+export async function exportarCliente(request, env, businessId, clientId) {
+  await requireBusinessAccess(request, env, businessId, ["owner", "admin"]);
+  const cliente = toDto(await findClient(env, businessId, clientId));
+  const { results: citas } = await env.DB.prepare(
+    `SELECT starts_at, ends_at, service_name, price_cents, status, notes FROM appointments
+      WHERE client_id = ? AND business_id = ? ORDER BY starts_at`
+  )
+    .bind(clientId, businessId)
+    .all();
+  const { results: cobros } = await env.DB.prepare(
+    `SELECT a.starts_at, p.kind, p.amount_cents, p.method, p.paid_at
+       FROM payments p JOIN appointments a ON a.id = p.appointment_id
+      WHERE a.client_id = ? AND a.business_id = ? ORDER BY p.paid_at`
+  )
+    .bind(clientId, businessId)
+    .all();
+
+  const datos = {
+    exportado: new Date().toISOString(),
+    cliente: {
+      nombre: cliente.first_name,
+      apellidos: cliente.last_name,
+      telefono: cliente.phone,
+      correo: cliente.email,
+      notas: cliente.notes,
+      etiquetas: cliente.tags,
+      comunicaciones_aceptadas: cliente.marketing_consent,
+      fecha_consentimiento: cliente.consent_at,
+    },
+    citas: citas.map((c) => ({
+      inicio: new Date(c.starts_at).toISOString(),
+      fin: new Date(c.ends_at).toISOString(),
+      servicio: c.service_name,
+      precio_cents: c.price_cents,
+      estado: c.status,
+      notas: c.notes,
+    })),
+    cobros: cobros.map((p) => ({
+      cita_inicio: new Date(p.starts_at).toISOString(),
+      tipo: p.kind,
+      importe_cents: p.amount_cents,
+      medio: p.method,
+      fecha: new Date(p.paid_at).toISOString(),
+    })),
+  };
+
+  return new Response(JSON.stringify(datos, null, 2), {
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      "Content-Disposition": `attachment; filename="cliente-${clientId.slice(0, 8)}.json"`,
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff",
+    },
+  });
 }

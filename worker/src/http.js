@@ -155,3 +155,32 @@ export async function requireBusinessAccess(request, env, businessId, roles = nu
   }
   return { user, role: membership.role };
 }
+
+// Límite de intentos de inicio de sesión: 10 por correo y 30 por IP en ventanas de 15 minutos.
+// Solo se guarda un hash de correo e IP.
+const VENTANA_LOGIN_MS = 15 * 60 * 1000;
+const MAX_LOGIN_POR_CORREO = 10;
+const MAX_LOGIN_POR_IP = 30;
+
+export async function superaLimiteLogin(request, env, correo) {
+  const ip = request.headers.get("cf-connecting-ip") || "sin-ip";
+  const ventana = Math.floor(Date.now() / VENTANA_LOGIN_MS);
+  const porCorreo = await contarIntento(env, `correo|${correo}`, ventana);
+  const porIp = await contarIntento(env, `ip|${ip}`, ventana);
+  await env.DB.prepare("DELETE FROM login_intentos WHERE ventana < ?").bind(ventana - 2).run();
+  return porCorreo > MAX_LOGIN_POR_CORREO || porIp > MAX_LOGIN_POR_IP;
+}
+
+async function contarIntento(env, clave, ventana) {
+  const hash = await hashToken(clave);
+  await env.DB.prepare(
+    `INSERT INTO login_intentos (clave, ventana, cuenta) VALUES (?, ?, 1)
+     ON CONFLICT (clave) DO UPDATE SET
+       cuenta = CASE WHEN login_intentos.ventana = excluded.ventana THEN login_intentos.cuenta + 1 ELSE 1 END,
+       ventana = excluded.ventana`
+  )
+    .bind(hash, ventana)
+    .run();
+  const fila = await env.DB.prepare("SELECT cuenta FROM login_intentos WHERE clave = ?").bind(hash).first();
+  return fila ? fila.cuenta : 0;
+}

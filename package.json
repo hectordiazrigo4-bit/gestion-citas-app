@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "wrangler dev",
     "test": "node --test \"worker/test/**/*.test.js\"",
+    "test:api": "node --test \"tests/**/*.test.mjs\"",
     "db:migrate:local": "wrangler d1 migrations apply gestion-citas --local",
     "db:migrate:remote": "wrangler d1 migrations apply gestion-citas --remote",
     "deploy": "wrangler deploy"
